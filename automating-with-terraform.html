@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Automating Infrastructure on Google Cloud with Terraform | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Automating Infrastructure on Google Cloud with Terraform" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/automating-with-terraform.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/automating-with-terraform.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Automating Infrastructure on Google Cloud with Terraform" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Automating Infrastructure on Google Cloud with Terraform","url":"https://derailed-dash.github.io/gcp-challenge-labs/automating-with-terraform.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=2655e3fa41bcc292377294b18a51fd2a8d320494">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="automating-infrastructure-on-google-cloud-with-terraform">Automating Infrastructure on Google Cloud with Terraform</h1>
+
+<p>See <a href="https://partner.cloudskillsboost.google/focuses/16515?parent=catalog" target="_blank">Challenge Lab</a></p>
+
+<h1 id="challenge">Challenge</h1>
+
+<p>In this lab, we’re going to:</p>
+
+<ul>
+  <li>Import existing infrastructure into your Terraform configuration.</li>
+  <li>Build and reference your own Terraform modules.</li>
+  <li>Add a remote backend to your configuration.</li>
+  <li>Use and implement a module from the Terraform Registry.</li>
+  <li>Re-provision, destroy, and update infrastructure.</li>
+  <li>Test connectivity between the resources you’ve created.</li>
+</ul>
+
+<h1 id="my-solution">My Solution</h1>
+
+<p>As usual, I’ll start by defining some variables we can use throughout this challenge:</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud auth list
+
+<span class="nv">region</span><span class="o">=</span>us-east1
+<span class="nv">zone</span><span class="o">=</span>ENTER ZONE
+<span class="nv">prj</span><span class="o">=</span>ENTER PRJ ID
+</code></pre></div></div>
+
+<h2 id="task-1---create-the-configuration-files">Task 1 - Create the Configuration Files</h2>
+
+<p>We’re told to create this folder structure:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>main.tf
+variables.tf
+modules/
+└── instances
+|   ├── instances.tf
+|   ├── outputs.tf
+|   └── variables.tf
+└── storage
+    ├── storage.tf
+    ├── outputs.tf
+    └── variables.tf
+</code></pre></div></div>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Create main.tf and variables.tf in the root directory</span>
+<span class="nb">touch </span>main.tf variables.tf
+
+<span class="c"># Create main directory and its files</span>
+<span class="nb">mkdir</span> <span class="nt">-p</span> modules/instances
+<span class="nb">mkdir </span>modules/storage
+
+<span class="c"># Create the required files in the 'instances' module directory</span>
+<span class="nb">touch </span>modules/instances/instances.tf
+<span class="nb">touch </span>modules/instances/outputs.tf
+<span class="nb">touch </span>modules/instances/variables.tf
+
+<span class="c"># Create the required files in the 'storage' module directory</span>
+<span class="nb">touch </span>modules/storage/storage.tf
+<span class="nb">touch </span>modules/storage/outputs.tf
+<span class="nb">touch </span>modules/storage/variables.tf
+</code></pre></div></div>
+
+<p>Update all three <code class="language-plaintext highlighter-rouge">variables.tf</code> files to contain these variables:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">variable</span> <span class="dl">"</span><span class="s2">region</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">description</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">The Google Cloud region</span><span class="dl">"</span>
+  <span class="nx">type</span>        <span class="o">=</span> <span class="nx">string</span>
+  <span class="k">default</span>     <span class="o">=</span> <span class="dl">"</span><span class="s2">us-east1</span><span class="dl">"</span>
+<span class="p">}</span>
+
+<span class="nx">variable</span> <span class="dl">"</span><span class="s2">zone</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">description</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">The Google Cloud zone</span><span class="dl">"</span>
+  <span class="nx">type</span>        <span class="o">=</span> <span class="nx">string</span>
+  <span class="k">default</span>     <span class="o">=</span> <span class="dl">"</span><span class="s2">Lab-supplied zone</span><span class="dl">"</span>
+<span class="p">}</span>
+
+<span class="nx">variable</span> <span class="dl">"</span><span class="s2">project_id</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">description</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">The ID of the project in which to provision resources.</span><span class="dl">"</span>
+  <span class="nx">type</span>        <span class="o">=</span> <span class="nx">string</span>
+  <span class="k">default</span>     <span class="o">=</span> <span class="dl">"</span><span class="s2">Your project ID</span><span class="dl">"</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Update the root module <code class="language-plaintext highlighter-rouge">main.tf</code> to include the Google Cloud Provider, which you can always look up in the  <a href="https://registry.terraform.io/providers/hashicorp/google/latest/docs" target="_blank">Terraform Registry</a>. We’re asked to include all three of these variables in our <code class="language-plaintext highlighter-rouge">provider</code> block.</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">terraform</span> <span class="p">{</span>
+  <span class="nx">required_providers</span> <span class="p">{</span>
+    <span class="nx">google</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="nx">source</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">hashicorp/google</span><span class="dl">"</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">provider</span> <span class="dl">"</span><span class="s2">google</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">project</span>     <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">project_id</span>
+  <span class="nx">region</span>      <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">region</span>
+  <span class="nx">zone</span>        <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">zone</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now initialise Terraform:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform init
+</code></pre></div></div>
+
+<h2 id="task-2---import-infrastructure">Task 2 - Import Infrastructure</h2>
+
+<p>Here, the goal is to bring infrastructure under Terraform control, that has thus far been provisioned outside of Terraform.</p>
+
+<p>We’re going to use the Terraform import workflow:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/tf_import_workflow.png" alt="Terraform import workflow" /></p>
+
+<p>These are the import steps:</p>
+
+<ol>
+  <li>Identify the existing infrastructure to be imported.</li>
+  <li>Import the infrastructure into your Terraform state.</li>
+  <li>Write a Terraform configuration that matches that infrastructure.</li>
+  <li>Review the Terraform plan to ensure that the configuration matches the expected state and infrastructure.</li>
+  <li>Apply the configuration to update your Terraform state.</li>
+</ol>
+
+<h3 id="step-1---identify-the-existing-infrastructure-to-be-imported">Step 1 - Identify the existing infrastructure to be imported</h3>
+
+<p>Examine one of the existing instances, <code class="language-plaintext highlighter-rouge">tf-instance-1</code>.  We want to retrieve:</p>
+
+<ul>
+  <li>Network</li>
+  <li>Machine type</li>
+  <li>Disk</li>
+</ul>
+
+<p>Next we need to include two calls to our <code class="language-plaintext highlighter-rouge">instances</code> module in our <code class="language-plaintext highlighter-rouge">main.tf</code>. They will contain empty definitions, so that we can import.</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">module</span> <span class="dl">"</span><span class="s2">tf_instance_1</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">source</span>        <span class="o">=</span> <span class="dl">"</span><span class="s2">./modules/instances</span><span class="dl">"</span>
+  <span class="nx">instance_name</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">tf-instance-1</span><span class="dl">"</span>
+  <span class="nx">zone</span>          <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">zone</span>
+  <span class="nx">region</span>        <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">region</span>
+<span class="p">}</span>
+
+<span class="nx">module</span> <span class="dl">"</span><span class="s2">tf_instance_2</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">source</span>        <span class="o">=</span> <span class="dl">"</span><span class="s2">./modules/instances</span><span class="dl">"</span>
+  <span class="nx">instance_name</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">tf-instance-2</span><span class="dl">"</span>
+  <span class="nx">zone</span>          <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">zone</span>
+  <span class="nx">region</span>        <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">region</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Remember that each module definition must have a unique label.</p>
+
+<p>Now initialise:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform init
+</code></pre></div></div>
+
+<p>Now we write the <a href="https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance">module configurations</a> in <code class="language-plaintext highlighter-rouge">instances.tf</code>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">resource</span> <span class="dl">"</span><span class="s2">google_compute_instance</span><span class="dl">"</span> <span class="dl">"</span><span class="s2">instance</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">name</span>         <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">instance_name</span>
+  <span class="nx">machine_type</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">hard code from existing instance</span><span class="dl">"</span>
+  <span class="nx">zone</span>         <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">zone</span>
+
+  <span class="nx">boot_disk</span> <span class="p">{</span>
+    <span class="nx">initialize_params</span> <span class="p">{</span>
+      <span class="err">#</span> <span class="nx">image</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">debian-cloud/debian-11</span><span class="dl">"</span>
+      <span class="nx">image</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">hard code from existing instance</span><span class="dl">"</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="nx">network_interface</span> <span class="p">{</span>
+    <span class="err">#</span> <span class="nx">network</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">default</span><span class="dl">"</span>
+    <span class="nx">network</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">hard code from existing instance</span><span class="dl">"</span>
+
+    <span class="nx">access_config</span> <span class="p">{</span>
+      <span class="c1">// Ephemeral public IP</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="nx">metadata_startup_script</span> <span class="o">=</span> <span class="o">&lt;&lt;-</span><span class="nx">EOT</span><span class="cp">
+          #!/bin/bash
+</span>      <span class="nx">EOT</span>
+  <span class="nx">allow_stopping_for_update</span> <span class="o">=</span> <span class="kc">true</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Update <code class="language-plaintext highlighter-rouge">variables.tf</code> in the <code class="language-plaintext highlighter-rouge">instance</code> module, so we can pass in the <code class="language-plaintext highlighter-rouge">instance_name</code>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">variable</span> <span class="dl">"</span><span class="s2">instance_name</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">description</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">The name of the instance.</span><span class="dl">"</span>
+  <span class="nx">type</span>        <span class="o">=</span> <span class="nx">string</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="import-the-existing-infrastructure-into-terraform-state">Import the Existing Infrastructure into Terraform State</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform import module.tf_instance_1.google_compute_instance.instance <span class="se">\</span>
+  projects/<span class="nv">$prj</span>/zones/<span class="nv">$zone</span>/instances/tf-instance-1
+
+terraform import module.tf_instance_2.google_compute_instance.instance <span class="se">\</span>
+  projects/<span class="nv">$prj</span>/zones/<span class="nv">$zone</span>/instances/tf-instance-2
+
+<span class="c"># verify the import</span>
+terraform show
+</code></pre></div></div>
+
+<p>The import should look like this:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/tf-import.png" alt="Terraform import" /></p>
+
+<h3 id="plan-and-apply">Plan and Apply</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform plan
+terraform apply
+</code></pre></div></div>
+
+<h2 id="task-3---configure-a-remote-backend">Task 3 - Configure a Remote Backend</h2>
+
+<p>This is pretty easy. The steps are:</p>
+
+<ol>
+  <li>Provision a GCS bucket with TF.</li>
+  <li>Add a <code class="language-plaintext highlighter-rouge">backend</code> block that points to the new GCS bucket.</li>
+  <li>Reinitialise Terraform and migrate the state from the local state file to the remote backend.</li>
+</ol>
+
+<h3 id="provision-the-gcs-bucket">Provision the GCS Bucket</h3>
+
+<p>Add this resource definition to <code class="language-plaintext highlighter-rouge">main.tf</code>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">resource</span> <span class="dl">"</span><span class="s2">google_storage_bucket</span><span class="dl">"</span> <span class="dl">"</span><span class="s2">test-bucket-for-state</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">name</span>        <span class="o">=</span> <span class="dl">"</span><span class="s2">Bucket Name You Are Given</span><span class="dl">"</span>
+  <span class="nx">location</span>    <span class="o">=</span> <span class="dl">"</span><span class="s2">US</span><span class="dl">"</span>
+  <span class="nx">uniform_bucket_level_access</span> <span class="o">=</span> <span class="kc">true</span>
+
+  <span class="nx">force_destroy</span> <span class="o">=</span> <span class="kc">true</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And apply:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform apply
+</code></pre></div></div>
+
+<h3 id="add-the-gcs-backend">Add the GCS Backend</h3>
+
+<p>Modify ‘main.tf’ and include the backend in the <code class="language-plaintext highlighter-rouge">terraform</code> block:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">terraform</span> <span class="p">{</span>
+  <span class="nx">backend</span> <span class="dl">"</span><span class="s2">gcs</span><span class="dl">"</span> <span class="p">{</span>
+    <span class="nx">bucket</span>  <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">project_id</span>
+    <span class="nx">prefix</span>  <span class="o">=</span> <span class="dl">"</span><span class="s2">terraform/state</span><span class="dl">"</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="migrate-the-state">Migrate the State</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform init <span class="nt">-migrate-state</span>
+</code></pre></div></div>
+
+<p>It will ask you to confirm you want to migrate the state:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/tf-migrate-state.png" alt="Terraform migrate state" /></p>
+
+<h2 id="modify-and-update-the-infrastructure">Modify and Update the Infrastructure</h2>
+
+<p>We need to update <code class="language-plaintext highlighter-rouge">variables.tf</code> to include a <code class="language-plaintext highlighter-rouge">machine_type</code>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">variable</span> <span class="dl">"</span><span class="s2">machine_type</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">description</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">The machine type of an instance</span><span class="dl">"</span>
+  <span class="nx">type</span>        <span class="o">=</span> <span class="nx">string</span>
+  <span class="k">default</span>     <span class="o">=</span> <span class="dl">"</span><span class="s2">e2-standard-2</span><span class="dl">"</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then we need to modify <code class="language-plaintext highlighter-rouge">instance.tf</code> so that it can accept a <code class="language-plaintext highlighter-rouge">machine_type</code> parameter:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">resource</span> <span class="dl">"</span><span class="s2">google_compute_instance</span><span class="dl">"</span> <span class="dl">"</span><span class="s2">instance</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">name</span>         <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">instance_name</span>
+  <span class="nx">machine_type</span> <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">machine_type</span>
+  <span class="nx">zone</span>         <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">zone</span>
+
+  <span class="p">...</span>
+</code></pre></div></div>
+
+<p>Lastly, we need to modify <code class="language-plaintext highlighter-rouge">main.tf</code> such that we add the specified third instance to our <code class="language-plaintext highlighter-rouge">main.tf</code>, by calling the module for a third time. We don’t need to pass in the <code class="language-plaintext highlighter-rouge">machine_type</code>, as we’ve already set it to have a default.</p>
+
+<p>Now initialise (because we’ve added another module instance) and apply.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform init
+terraform apply
+</code></pre></div></div>
+
+<h2 id="task-5---destroy-resources">Task 5 - Destroy Resources</h2>
+
+<p>Now we remove the instance we previously added.  Remove the call to this module from <code class="language-plaintext highlighter-rouge">main.tf</code>, then reapply:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform init
+terraform apply
+</code></pre></div></div>
+
+<h2 id="task-6---use-a-module-from-the-registry">Task 6 - Use a Module from the Registry</h2>
+
+<p>We’re going to use the <a href="https://registry.terraform.io/modules/terraform-google-modules/network/google/6.0.0" target="_blank">Google Network Module</a>.</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">module</span> <span class="dl">"</span><span class="s2">network</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">source</span>  <span class="o">=</span> <span class="dl">"</span><span class="s2">terraform-google-modules/network/google</span><span class="dl">"</span>
+  <span class="nx">version</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">6.0.0</span><span class="dl">"</span>
+
+  <span class="nx">project_id</span>   <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">project_id</span>
+  <span class="nx">network_name</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">Use Supplied VPC Name</span><span class="dl">"</span>
+  <span class="nx">routing_mode</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">GLOBAL</span><span class="dl">"</span>
+
+  <span class="nx">subnets</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nx">subnet_name</span>           <span class="o">=</span> <span class="dl">"</span><span class="s2">subnet-01</span><span class="dl">"</span>
+      <span class="nx">subnet_ip</span>             <span class="o">=</span> <span class="dl">"</span><span class="s2">10.10.10.0/24</span><span class="dl">"</span>
+      <span class="nx">subnet_region</span>         <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">region</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nx">subnet_name</span>           <span class="o">=</span> <span class="dl">"</span><span class="s2">subnet-02</span><span class="dl">"</span>
+      <span class="nx">subnet_ip</span>             <span class="o">=</span> <span class="dl">"</span><span class="s2">10.10.20.0/24</span><span class="dl">"</span>
+      <span class="nx">subnet_region</span>         <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">region</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Apply:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform init
+terraform apply
+</code></pre></div></div>
+
+<p>Update <code class="language-plaintext highlighter-rouge">instances</code> module to take a <code class="language-plaintext highlighter-rouge">network</code> parameter and a <code class="language-plaintext highlighter-rouge">subnet</code> parameter.</p>
+
+<p>In <code class="language-plaintext highlighter-rouge">variables.tf</code>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">variable</span> <span class="dl">"</span><span class="s2">network</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">description</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">The network</span><span class="dl">"</span>
+  <span class="nx">type</span>        <span class="o">=</span> <span class="nx">string</span>
+<span class="p">}</span>
+
+<span class="nx">variable</span> <span class="dl">"</span><span class="s2">subnet</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">description</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">The subnet</span><span class="dl">"</span>
+  <span class="nx">type</span>        <span class="o">=</span> <span class="nx">string</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In <code class="language-plaintext highlighter-rouge">instance.tf</code>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="nx">network_interface</span> <span class="p">{</span>
+    <span class="nx">network</span> <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">network</span>
+    <span class="nx">subnetwork</span> <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">subnet</span>
+
+    <span class="nx">access_config</span> <span class="p">{</span>
+      <span class="c1">// Ephemeral public IP</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then update <code class="language-plaintext highlighter-rouge">main.tf</code> to create the instances like this:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">module</span> <span class="dl">"</span><span class="s2">tf_instance_1</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">source</span>        <span class="o">=</span> <span class="dl">"</span><span class="s2">./modules/instances</span><span class="dl">"</span>
+  <span class="nx">instance_name</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">tf-instance-1</span><span class="dl">"</span>
+  <span class="nx">zone</span>          <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">zone</span>
+  <span class="nx">region</span>        <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">region</span>
+
+  <span class="nx">network</span>       <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">network</span><span class="p">.</span><span class="nx">network_name</span>
+  <span class="nx">subnet</span>        <span class="o">=</span> <span class="dl">"</span><span class="s2">subnet-01</span><span class="dl">"</span>
+<span class="p">}</span>
+
+<span class="nx">module</span> <span class="dl">"</span><span class="s2">tf_instance_2</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">source</span>        <span class="o">=</span> <span class="dl">"</span><span class="s2">./modules/instances</span><span class="dl">"</span>
+  <span class="nx">instance_name</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">tf-instance-2</span><span class="dl">"</span>
+  <span class="nx">zone</span>          <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">zone</span>
+  <span class="nx">region</span>        <span class="o">=</span> <span class="kd">var</span><span class="p">.</span><span class="nx">region</span>
+
+  <span class="nx">network</span>       <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">network</span><span class="p">.</span><span class="nx">network_name</span>
+  <span class="nx">subnet</span>        <span class="o">=</span> <span class="dl">"</span><span class="s2">subnet-02</span><span class="dl">"</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform init
+terraform apply
+</code></pre></div></div>
+
+<h2 id="task-7---add-a-firewall">Task 7 - Add a Firewall</h2>
+
+<p>Update <code class="language-plaintext highlighter-rouge">main.tf</code>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">resource</span> <span class="dl">"</span><span class="s2">google_compute_firewall</span><span class="dl">"</span> <span class="dl">"</span><span class="s2">default</span><span class="dl">"</span> <span class="p">{</span>
+  <span class="nx">name</span>          <span class="o">=</span> <span class="dl">"</span><span class="s2">tf-firewall</span><span class="dl">"</span>
+  <span class="nx">network</span>       <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">network</span><span class="p">.</span><span class="nx">network_name</span>
+  <span class="nx">direction</span>     <span class="o">=</span> <span class="dl">"</span><span class="s2">INGRESS</span><span class="dl">"</span>
+  <span class="nx">source_ranges</span> <span class="o">=</span> <span class="p">[</span><span class="dl">"</span><span class="s2">0.0.0.0/0</span><span class="dl">"</span><span class="p">]</span>
+
+  <span class="nx">allow</span> <span class="p">{</span>
+    <span class="nx">protocol</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">tcp</span><span class="dl">"</span>
+    <span class="nx">ports</span>    <span class="o">=</span> <span class="p">[</span><span class="dl">"</span><span class="s2">80</span><span class="dl">"</span><span class="p">]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And one last apply…</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>terraform apply
+</code></pre></div></div>
+
+<p>And we’re done!</p>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>
