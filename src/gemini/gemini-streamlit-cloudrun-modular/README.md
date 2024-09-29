@@ -2,6 +2,15 @@
 export PROJECT='<Your Google Cloud Project ID>'
 export REGION='<your region>'
 
+# Enable APIs
+gcloud services enable \
+  cloudbuild.googleapis.com \
+  cloudfunctions.googleapis.com \
+  run.googleapis.com \
+  logging.googleapis.com \
+  storage-component.googleapis.com \
+  aiplatform.googleapis.com
+
 python3 -m venv gemini-streamlit
 source gemini-streamlit/bin/activate
 pip install -r requirements.txt
@@ -10,7 +19,7 @@ pip install -r requirements.txt
 To run the application locally:
 
 ```bash
-streamlit run chef.py \
+streamlit run app.py \
   --browser.serverAddress=localhost \
   --server.enableCORS=false \
   --server.enableXsrfProtection=false \
