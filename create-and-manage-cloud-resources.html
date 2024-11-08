@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Create and Manage Cloud Resources: Challenge Lab | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Create and Manage Cloud Resources: Challenge Lab" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/create-and-manage-cloud-resources.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/create-and-manage-cloud-resources.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Create and Manage Cloud Resources: Challenge Lab" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Create and Manage Cloud Resources: Challenge Lab","url":"https://derailed-dash.github.io/gcp-challenge-labs/create-and-manage-cloud-resources.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=e0cb695c2ee83a16a2375b87c164a13c944c1240">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="create-and-manage-cloud-resources-challenge-lab">Create and Manage Cloud Resources: Challenge Lab</h1>
+
+<p>See <a href="https://www.cloudskillsboost.google/focuses/10258?parent=catalog" target="_blank">Challenge Lab</a></p>
+
+<h1 id="objective">Objective</h1>
+
+<p>This lab is in three parts:</p>
+
+<ol>
+  <li>Create a jump host instance</li>
+  <li><a href="#create-a-kubernetes-cluster-and-run-a-simple-service">Create a Kubernetes cluster and run a simple service</a></li>
+  <li><a href="#create-an-https-load-balancer-in-front-of-two-web-servers">Create an HTTP(s) load balancer in front of two web servers</a></li>
+</ol>
+
+<p>The first challenge is so trivial, it’s not worth mentioning.</p>
+
+<p>I’ll documention my solutions to other two parts here.</p>
+
+<h2 id="create-a-kubernetes-cluster-and-run-a-simple-service">Create a Kubernetes Cluster and Run a Simple Service</h2>
+
+<h3 id="objectives">Objectives</h3>
+
+<p>We’re asked to:</p>
+
+<ul>
+  <li>Create a cluster (in the us-east1-b zone) to host the service.</li>
+  <li>Use the Docker container <code class="language-plaintext highlighter-rouge">hello-app</code> (<code class="language-plaintext highlighter-rouge">gcr.io/google-samples/hello-app:2.0</code>) as a placeholder; the team will replace the container with their own work later.</li>
+  <li>Expose the app on port App port number nnnn.</li>
+</ul>
+
+<h3 id="my-solution">My Solution</h3>
+
+<p>First, let’s define some variables we can use throughout this challenge:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">port</span><span class="o">=</span>8082
+<span class="nv">instance_type</span><span class="o">=</span>n1-standard-1
+<span class="nv">region</span><span class="o">=</span>us-east1
+<span class="nv">zone</span><span class="o">=</span>us-east1-b
+<span class="nv">network</span><span class="o">=</span>nucleus-vpc
+</code></pre></div></div>
+
+<p>First, we create a three node cluster, using the required machine type for our nodes.  Note that this takes a couple of minutes to run.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud container clusters create nucleus-cluster <span class="se">\</span>
+  <span class="nt">--machine-type</span><span class="o">=</span><span class="nv">$instance</span><span class="nt">-type</span>  <span class="se">\</span>
+  <span class="nt">--num-nodes</span> 3 <span class="nt">--zone</span> <span class="nv">$zone</span>
+</code></pre></div></div>
+
+<p>Then we need to fetch the credentials for our new GKE cluster, and update our local <code class="language-plaintext highlighter-rouge">kubeconfig</code>.  This allows us to run <code class="language-plaintext highlighter-rouge">kubectl</code> commands against our new cluster.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud container clusters get-credentials nucleus-cluster <span class="nt">--zone</span> <span class="nv">$zone</span>
+</code></pre></div></div>
+
+<p>Let’s verify our cluster:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl cluster-info
+</code></pre></div></div>
+
+<p>Now we need to deploy an application, using a container image pulled from the Google Container Repo (GCR).</p>
+
+<p>Although we’re not told to specify a number of replicas, I’ve elected to deploy three replicas of the application:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create deployment hello-server <span class="se">\</span>
+  <span class="nt">--image</span><span class="o">=</span>gcr.io/google-samples/hello-app:2.0 <span class="nt">--replicas</span><span class="o">=</span>3
+</code></pre></div></div>
+
+<p>Now the instructions get a bit funky.  We’re told to expose the application using a load balancer, on a specified port, e.g. 8082.  (The actual port number can vary from lab instance to lab instance.)</p>
+
+<p>This command exposes our application replicas using a Load Balancer with a frontend IP address. Note that I’ve named the exposed service <code class="language-plaintext highlighter-rouge">hello-svc</code>.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl expose deployment hello-server <span class="nt">--name</span><span class="o">=</span>hello-svc <span class="nt">--port</span><span class="o">=</span><span class="nv">$port</span> <span class="nt">--type</span><span class="o">=</span>LoadBalancer
+
+<span class="c"># And check the service</span>
+kubectl get service
+</code></pre></div></div>
+
+<p>Note that whilst the block above is what the lab <em>requires</em>, it results in a service that doesn’t actually connect to the application. If you want the frontend LB to actually successfully connect to the application exposed in each container, use this line instead:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl expose deployment hello-server <span class="nt">--name</span><span class="o">=</span>hello-svc <span class="nt">--port</span><span class="o">=</span>8082 <span class="nt">--target-port</span><span class="o">=</span>8080 <span class="nt">--type</span><span class="o">=</span>LoadBalancer
+</code></pre></div></div>
+
+<p>The above command results in a working application, which we can test by pointing our browser to:</p>
+
+<p><code class="language-plaintext highlighter-rouge">http://[LB-external-ip]:8082</code></p>
+
+<p>Alas, the lab won’t properly update progress if you do the above command.</p>
+
+<h2 id="create-an-https-load-balancer-in-front-of-two-web-servers">Create an HTTP(s) Load Balancer in Front of Two Web Servers</h2>
+
+<h3 id="objectives-1">Objectives</h3>
+
+<p>We’re asked to create a fault-tolerant environment of two nginx webservers, accessible via an HTTP load balancer.</p>
+
+<p>We’re given explicit requirements:</p>
+
+<ul>
+  <li>Create an instance template.</li>
+  <li>Create a target pool.</li>
+  <li>Create a managed instance group.</li>
+  <li>Create a firewall rule named as <code class="language-plaintext highlighter-rouge">some-name</code> to allow traffic (80/tcp).</li>
+  <li>Create a health check.</li>
+  <li>Create a backend service, and attach the managed instance group with named port (http:80).</li>
+  <li>Create a URL map, and target the HTTP proxy to route requests to your URL map.</li>
+  <li>Create a forwarding rule.</li>
+</ul>
+
+<h3 id="anatomy-of-a-load-balancer">Anatomy of a Load Balancer</h3>
+
+<p>We’re going to build something like this:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/http-to-mig-lb.png" alt="Load Balancer and MIG" style="width:800px;" /></p>
+
+<h3 id="my-solution-1">My Solution</h3>
+
+<p>We’ll continue to use the environment variables defined in the previous part.  Additionally, we need a specific firewall name, which is supplied in the lab.  (Yours will probably be different.)</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">fw_rule</span><span class="o">=</span>grant-tcp-rule-667
+</code></pre></div></div>
+
+<p>Don’t forget to change the above line so that the rule matches what was supplied in your lab.</p>
+
+<p>First, let’s create a <code class="language-plaintext highlighter-rouge">startup.sh</code> using the supplied start-up instructions:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Create startup script</span>
+<span class="nb">cat</span> <span class="o">&lt;&lt;</span> <span class="no">EOF</span><span class="sh"> &gt; startup.sh
+#! /bin/bash
+apt-get update
+apt-get install -y nginx
+service nginx start
+sed -i -- 's/nginx/Google Cloud Platform -- '"</span><span class="se">\$</span><span class="sh">HOSTNAME"'/' /var/www/html/index.nginx-debian.html
+</span><span class="no">EOF
+</span></code></pre></div></div>
+
+<p>This startup script installs nginx on a the Linux machine, and then starts the nginx service.</p>
+
+<p>Now we create an <strong>instance template</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute instance-templates create nucleus-nginx-template <span class="se">\</span>
+  <span class="nt">--tags</span><span class="o">=</span>allow-health-check,web <span class="se">\</span>
+  <span class="nt">--network</span><span class="o">=</span><span class="nv">$network</span> <span class="se">\</span>
+  <span class="nt">--machine-type</span><span class="o">=</span><span class="nv">$instance_type</span> <span class="nt">--image-family</span><span class="o">=</span>debian-11 <span class="se">\</span>
+  <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span> <span class="se">\</span>
+  <span class="nt">--metadata-from-file</span><span class="o">=</span>startup-script<span class="o">=</span>startup.sh
+</code></pre></div></div>
+
+<p>Here I’ve:</p>
+
+<ul>
+  <li>Added two network tags, called <code class="language-plaintext highlighter-rouge">allow-health-check</code> and <code class="language-plaintext highlighter-rouge">web</code>. Strictly, the lab doesn’t require these.  But I find it good practice, and allows us to wire up two separate granular firewall rules, if we want to.</li>
+  <li>Defined a metadata item called <code class="language-plaintext highlighter-rouge">startup-script</code>, pointing to our local <code class="language-plaintext highlighter-rouge">startup.sh</code> file. Thus, each new instance we create from this template will us the startup.sh we created earlier.</li>
+</ul>
+
+<p>Now create a <strong>target pool</strong>, as explicitly requested by the lab:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute target-pools create nginx-pool <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span>
+</code></pre></div></div>
+
+<p>It’s worth noting that a <em>target pool</em> is a legacy approach, and we wouldn’t normally use a <em>target pool</em> with an HTTP(S) load balancer.  But this lab requires it.  Also note that when we use a <em>target pool</em>, we’ll also have to use a <em>legacy HTTP healthy check</em>.</p>
+
+<p>Now, as required, we create a <strong>managed instance group</strong> from our template, with two instances:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute instance-groups managed create nginx-group <span class="se">\</span>
+  <span class="nt">--base-instance-name</span><span class="o">=</span>nucleus-nginx <span class="se">\</span>
+  <span class="nt">--template</span><span class="o">=</span>nucleus-nginx-template <span class="se">\</span>
+  <span class="nt">--size</span><span class="o">=</span>2 <span class="se">\</span>
+  <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span> <span class="se">\</span>
+  <span class="nt">--target-pool</span> nginx-pool
+</code></pre></div></div>
+
+<p>Here I’ve defined a base name of <code class="language-plaintext highlighter-rouge">nucleus-nginx</code>.  The lab mentions that our resources should be named <em><code class="language-plaintext highlighter-rouge">team-resource</code></em>. Thus, all instances in my MIG will be prefixed with <code class="language-plaintext highlighter-rouge">nucleus-nginx</code>, followed by a random string.</p>
+
+<p><strong>Here’s the gotcha.</strong></p>
+
+<p>The lab says we need <em>“to create a backend service, and attach the managed instance group with named port (http:80).”</em></p>
+
+<p>It turns out that if you don’t add a named port to the managed instance group, then you <strong>can’t successfully complete the lab.</strong>  This took me quite some time to work out.</p>
+
+<p>So let’s add the <strong>named port</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute instance-groups managed set-named-ports nginx-group <span class="se">\</span>
+  <span class="nt">--named-ports</span> http:80 <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span>
+</code></pre></div></div>
+
+<p>Now we create the <strong>firewall rule</strong>, with the lab-supplied name:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute firewall-rules create <span class="nv">$fw_rule</span> <span class="se">\</span>
+  <span class="nt">--network</span><span class="o">=</span><span class="nv">$network</span> <span class="se">\</span>
+  <span class="nt">--action</span><span class="o">=</span>allow <span class="se">\</span>
+  <span class="nt">--direction</span><span class="o">=</span>ingress <span class="se">\</span>
+  <span class="nt">--source-ranges</span><span class="o">=</span>0.0.0.0/0 <span class="se">\</span>
+  <span class="nt">--target-tags</span><span class="o">=</span>web <span class="se">\</span>
+  <span class="nt">--rules</span><span class="o">=</span>tcp:80
+</code></pre></div></div>
+
+<p>Note that although the lab doesn’t ask us to, I’ve set this firewall rule so that it only applies to instances with the <code class="language-plaintext highlighter-rouge">web</code> tag. And, of course, our instances do have the <code class="language-plaintext highlighter-rouge">web</code> tag.</p>
+
+<p>Now we’ll create the <strong>health check</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute health-checks create http http-basic-check <span class="nt">--port</span> 80
+</code></pre></div></div>
+
+<p>Now create a global <strong>backend service</strong> for HTTP uses our health check:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute backend-services create nginx-backend-service <span class="se">\</span>
+  <span class="nt">--protocol</span><span class="o">=</span>HTTP <span class="nt">--port-name</span><span class="o">=</span>http <span class="se">\</span>
+  <span class="nt">--health-checks</span><span class="o">=</span>http-basic-check <span class="se">\</span>
+  <span class="nt">--global</span>
+</code></pre></div></div>
+
+<p>Now we <strong>add our MIG to the backend service</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute backend-services add-backend nginx-backend-service <span class="se">\</span>
+  <span class="nt">--instance-group</span><span class="o">=</span>nginx-group <span class="se">\</span>
+  <span class="nt">--instance-group-region</span><span class="o">=</span><span class="nv">$region</span>  <span class="se">\</span>
+  <span class="nt">--global</span>
+</code></pre></div></div>
+
+<p>Create the <strong>URL map</strong>, such that any HTTP requestes are forwarded to our backend:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute url-maps create web-map-http <span class="nt">--default-service</span> nginx-backend-service
+</code></pre></div></div>
+
+<p>Now we create a <strong>target HTTP proxy</strong> to route requests to the URL map</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute target-http-proxies create http-lb-proxy <span class="nt">--url-map</span> web-map-http
+</code></pre></div></div>
+
+<p>Finally, create global <strong>forwarding rule</strong> to route incoming requests to the proxy:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute forwarding-rules create http-forwarding-rule <span class="se">\</span>
+    <span class="nt">--global</span> <span class="se">\</span>
+    <span class="nt">--ports</span> 80 <span class="se">\</span>
+    <span class="nt">--target-http-proxy</span> http-lb-proxy
+</code></pre></div></div>
+
+<p>And that’s it!</p>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Perform Foundational Infrastructure Tasks in Google Cloud | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Perform Foundational Infrastructure Tasks in Google Cloud" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/foundational-infra-tasks.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/foundational-infra-tasks.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Perform Foundational Infrastructure Tasks in Google Cloud" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Perform Foundational Infrastructure Tasks in Google Cloud","url":"https://derailed-dash.github.io/gcp-challenge-labs/foundational-infra-tasks.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=e0cb695c2ee83a16a2375b87c164a13c944c1240">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="perform-foundational-infrastructure-tasks-in-google-cloud">Perform Foundational Infrastructure Tasks in Google Cloud</h1>
+
+<p>See <a href="https://www.cloudskillsboost.google//course_sessions/5014354/labs/403971" target="_blank">Challenge Lab</a></p>
+
+<h1 id="challenge">Challenge</h1>
+
+<p>You’ve been asked to:</p>
+
+<ul>
+  <li>Create a bucket for storing the photographs.</li>
+  <li>Create a Pub/Sub topic that will be used by a Cloud Function you create.</li>
+  <li>Create a Cloud Function.</li>
+  <li>Remove the previous cloud engineer’s access from the memories project.</li>
+</ul>
+
+<p>You’re given some standards to follow:</p>
+
+<ul>
+  <li>Create all resources in the specified region and zone, unless otherwise directed.</li>
+  <li>Use the project VPCs.</li>
+  <li>Naming is normally <code class="language-plaintext highlighter-rouge">team-resource</code>, e.g. an instance could be named <code class="language-plaintext highlighter-rouge">kraken-webserver1</code></li>
+  <li>Allocate cost effective resource sizes. Projects are monitored and excessive resource use will result in the containing project’s termination (and possibly yours), so beware. Use:
+    <ul>
+      <li>e2-micro for small Linux VMs</li>
+      <li>e2-medium for Windows or other applications such as Kubernetes nodes.</li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="my-solution">My Solution</h1>
+
+<p>I prefer to use the Cloud Shell and gcloud CLI, because it makes the steps much more repeatable.</p>
+
+<h2 id="prep">Prep</h2>
+
+<p>Let’s start by defining some variables we can use throughout this challenge:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud auth list
+
+<span class="nv">prj</span><span class="o">=</span>qwiklabs-gcp-04-d047d2a3a544
+<span class="nv">region</span><span class="o">=</span>us-central1
+<span class="nv">zone</span><span class="o">=</span>us-central1-f
+<span class="nv">bucket</span><span class="o">=</span>qwiklabs-gcp-04-d047d2a3a544-bucket
+<span class="nv">topic</span><span class="o">=</span>topic-memories-333
+<span class="nv">cfunc</span><span class="o">=</span>memories-thumbnail-creator
+<span class="nv">user1</span><span class="o">=</span>student-00-18a23fbbbab4@qwiklabs.net
+<span class="nv">user2</span><span class="o">=</span>student-04-519d4e4dc131@qwiklabs.net
+
+gcloud config <span class="nb">set </span>compute/region <span class="nv">$region</span>
+gcloud config <span class="nb">set </span>compute/zone <span class="nv">$zone</span>
+</code></pre></div></div>
+
+<p>Substitute for any variables you’ve been given, in your instance of the challenge.</p>
+
+<h2 id="task-1---create-the-bucket">Task 1 - Create the Bucket</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gsutil mb gs://<span class="nv">$bucket</span>
+</code></pre></div></div>
+
+<h2 id="task-2---create-the-pubsub-topic">Task 2 - Create the Pub/Sub Topic</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud pubsub topics create <span class="nv">$topic</span>
+</code></pre></div></div>
+
+<h2 id="task-3---create-the-cloud-function">Task 3 - Create the Cloud Function</h2>
+
+<p>You need to create a folder for your function code.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mkdir </span>thumbnail <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="nv">$_</span>
+</code></pre></div></div>
+
+<p>Now create your <code class="language-plaintext highlighter-rouge">index.js</code>.  It should look like this:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">functions</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">@google-cloud/functions-framework</span><span class="dl">'</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">crc32</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">fast-crc32c</span><span class="dl">"</span><span class="p">);</span>
+<span class="kd">const</span> <span class="p">{</span> <span class="nx">Storage</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">@google-cloud/storage</span><span class="dl">'</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">gcs</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Storage</span><span class="p">();</span>
+<span class="kd">const</span> <span class="p">{</span> <span class="nx">PubSub</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">@google-cloud/pubsub</span><span class="dl">'</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">imagemagick</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">imagemagick-stream</span><span class="dl">"</span><span class="p">);</span>
+<span class="nx">functions</span><span class="p">.</span><span class="nx">cloudEvent</span><span class="p">(</span><span class="dl">''</span><span class="p">,</span> <span class="nx">cloudEvent</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">event</span> <span class="o">=</span> <span class="nx">cloudEvent</span><span class="p">.</span><span class="nx">data</span><span class="p">;</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`Event: </span><span class="p">${</span><span class="nx">event</span><span class="p">}</span><span class="s2">`</span><span class="p">);</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`Hello </span><span class="p">${</span><span class="nx">event</span><span class="p">.</span><span class="nx">bucket</span><span class="p">}</span><span class="s2">`</span><span class="p">);</span>
+  <span class="kd">const</span> <span class="nx">fileName</span> <span class="o">=</span> <span class="nx">event</span><span class="p">.</span><span class="nx">name</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">bucketName</span> <span class="o">=</span> <span class="nx">event</span><span class="p">.</span><span class="nx">bucket</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">size</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">64x64</span><span class="dl">"</span>
+  <span class="kd">const</span> <span class="nx">bucket</span> <span class="o">=</span> <span class="nx">gcs</span><span class="p">.</span><span class="nx">bucket</span><span class="p">(</span><span class="nx">bucketName</span><span class="p">);</span>
+  <span class="kd">const</span> <span class="nx">topicName</span> <span class="o">=</span> <span class="dl">""</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">pubsub</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">PubSub</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span> <span class="nx">fileName</span><span class="p">.</span><span class="nx">search</span><span class="p">(</span><span class="dl">"</span><span class="s2">64x64_thumbnail</span><span class="dl">"</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="p">){</span>
+    <span class="c1">// doesn't have a thumbnail, get the filename extension</span>
+    <span class="kd">var</span> <span class="nx">filename_split</span> <span class="o">=</span> <span class="nx">fileName</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="dl">'</span><span class="s1">.</span><span class="dl">'</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">filename_ext</span> <span class="o">=</span> <span class="nx">filename_split</span><span class="p">[</span><span class="nx">filename_split</span><span class="p">.</span><span class="nx">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">];</span>
+    <span class="kd">var</span> <span class="nx">filename_without_ext</span> <span class="o">=</span> <span class="nx">fileName</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nx">fileName</span><span class="p">.</span><span class="nx">length</span> <span class="o">-</span> <span class="nx">filename_ext</span><span class="p">.</span><span class="nx">length</span> <span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">filename_ext</span><span class="p">.</span><span class="nx">toLowerCase</span><span class="p">()</span> <span class="o">==</span> <span class="dl">'</span><span class="s1">png</span><span class="dl">'</span> <span class="o">||</span> <span class="nx">filename_ext</span><span class="p">.</span><span class="nx">toLowerCase</span><span class="p">()</span> <span class="o">==</span> <span class="dl">'</span><span class="s1">jpg</span><span class="dl">'</span><span class="p">){</span>
+      <span class="c1">// only support png and jpg at this point</span>
+      <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`Processing Original: gs://</span><span class="p">${</span><span class="nx">bucketName</span><span class="p">}</span><span class="s2">/</span><span class="p">${</span><span class="nx">fileName</span><span class="p">}</span><span class="s2">`</span><span class="p">);</span>
+      <span class="kd">const</span> <span class="nx">gcsObject</span> <span class="o">=</span> <span class="nx">bucket</span><span class="p">.</span><span class="nx">file</span><span class="p">(</span><span class="nx">fileName</span><span class="p">);</span>
+      <span class="kd">let</span> <span class="nx">newFilename</span> <span class="o">=</span> <span class="nx">filename_without_ext</span> <span class="o">+</span> <span class="nx">size</span> <span class="o">+</span> <span class="dl">'</span><span class="s1">_thumbnail.</span><span class="dl">'</span> <span class="o">+</span> <span class="nx">filename_ext</span><span class="p">;</span>
+      <span class="kd">let</span> <span class="nx">gcsNewObject</span> <span class="o">=</span> <span class="nx">bucket</span><span class="p">.</span><span class="nx">file</span><span class="p">(</span><span class="nx">newFilename</span><span class="p">);</span>
+      <span class="kd">let</span> <span class="nx">srcStream</span> <span class="o">=</span> <span class="nx">gcsObject</span><span class="p">.</span><span class="nx">createReadStream</span><span class="p">();</span>
+      <span class="kd">let</span> <span class="nx">dstStream</span> <span class="o">=</span> <span class="nx">gcsNewObject</span><span class="p">.</span><span class="nx">createWriteStream</span><span class="p">();</span>
+      <span class="kd">let</span> <span class="nx">resize</span> <span class="o">=</span> <span class="nx">imagemagick</span><span class="p">().</span><span class="nx">resize</span><span class="p">(</span><span class="nx">size</span><span class="p">).</span><span class="nx">quality</span><span class="p">(</span><span class="mi">90</span><span class="p">);</span>
+      <span class="nx">srcStream</span><span class="p">.</span><span class="nx">pipe</span><span class="p">(</span><span class="nx">resize</span><span class="p">).</span><span class="nx">pipe</span><span class="p">(</span><span class="nx">dstStream</span><span class="p">);</span>
+      <span class="k">return</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">((</span><span class="nx">resolve</span><span class="p">,</span> <span class="nx">reject</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="nx">dstStream</span>
+          <span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="dl">"</span><span class="s2">error</span><span class="dl">"</span><span class="p">,</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+            <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`Error: </span><span class="p">${</span><span class="nx">err</span><span class="p">}</span><span class="s2">`</span><span class="p">);</span>
+            <span class="nx">reject</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+          <span class="p">})</span>
+          <span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="dl">"</span><span class="s2">finish</span><span class="dl">"</span><span class="p">,</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+            <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`Success: </span><span class="p">${</span><span class="nx">fileName</span><span class="p">}</span><span class="s2"> → </span><span class="p">${</span><span class="nx">newFilename</span><span class="p">}</span><span class="s2">`</span><span class="p">);</span>
+              <span class="c1">// set the content-type</span>
+              <span class="nx">gcsNewObject</span><span class="p">.</span><span class="nx">setMetadata</span><span class="p">(</span>
+              <span class="p">{</span>
+                <span class="na">contentType</span><span class="p">:</span> <span class="dl">'</span><span class="s1">image/</span><span class="dl">'</span><span class="o">+</span> <span class="nx">filename_ext</span><span class="p">.</span><span class="nx">toLowerCase</span><span class="p">()</span>
+              <span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">apiResponse</span><span class="p">)</span> <span class="p">{});</span>
+              <span class="nx">pubsub</span>
+                <span class="p">.</span><span class="nx">topic</span><span class="p">(</span><span class="nx">topicName</span><span class="p">)</span>
+                <span class="p">.</span><span class="nx">publisher</span><span class="p">()</span>
+                <span class="p">.</span><span class="nx">publish</span><span class="p">(</span><span class="nx">Buffer</span><span class="p">.</span><span class="k">from</span><span class="p">(</span><span class="nx">newFilename</span><span class="p">))</span>
+                <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">messageId</span> <span class="o">=&gt;</span> <span class="p">{</span>
+                  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`Message </span><span class="p">${</span><span class="nx">messageId</span><span class="p">}</span><span class="s2"> published.`</span><span class="p">);</span>
+                <span class="p">})</span>
+                <span class="p">.</span><span class="k">catch</span><span class="p">(</span><span class="nx">err</span> <span class="o">=&gt;</span> <span class="p">{</span>
+                  <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="dl">'</span><span class="s1">ERROR:</span><span class="dl">'</span><span class="p">,</span> <span class="nx">err</span><span class="p">);</span>
+                <span class="p">});</span>
+          <span class="p">});</span>
+      <span class="p">});</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="p">{</span>
+      <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`gs://</span><span class="p">${</span><span class="nx">bucketName</span><span class="p">}</span><span class="s2">/</span><span class="p">${</span><span class="nx">fileName</span><span class="p">}</span><span class="s2"> is not an image I can handle`</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="k">else</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`gs://</span><span class="p">${</span><span class="nx">bucketName</span><span class="p">}</span><span class="s2">/</span><span class="p">${</span><span class="nx">fileName</span><span class="p">}</span><span class="s2"> already has a thumbnail`</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<p>Create <code class="language-plaintext highlighter-rouge">package.json</code>:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"thumbnails"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.0.0"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Create Thumbnail of uploaded image"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"scripts"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"node index.js"</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"dependencies"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"@google-cloud/functions-framework"</span><span class="p">:</span><span class="w"> </span><span class="s2">"^3.0.0"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"@google-cloud/pubsub"</span><span class="p">:</span><span class="w"> </span><span class="s2">"^2.0.0"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"@google-cloud/storage"</span><span class="p">:</span><span class="w"> </span><span class="s2">"^5.0.0"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"fast-crc32c"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.0.4"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"imagemagick-stream"</span><span class="p">:</span><span class="w"> </span><span class="s2">"4.1.1"</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"devDependencies"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
+  </span><span class="nl">"engines"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&gt;=4.3.2"</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Now we’re ready to create the Cloud Function:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud functions deploy <span class="nv">$cfunc</span> <span class="se">\</span>
+  <span class="nt">--gen2</span> <span class="se">\</span>
+  <span class="nt">--stage-bucket</span> <span class="nv">$bucket</span> <span class="se">\</span>
+  <span class="nt">--trigger-topic</span> <span class="nv">$topic</span> <span class="se">\</span>
+  <span class="nt">--runtime</span> nodejs20
+</code></pre></div></div>
+
+<h2 id="task-4---test-by-uploading-an-image">Task 4 - Test by Uploading an Image</h2>
+
+<p>Retrieve a picture, and download it to your Cloud Shell. From there, copy it to your bucket.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl https://storage.googleapis.com/cloud-training/gsp315/map.jpg <span class="nt">--output</span> map.jpg
+gsutil <span class="nb">cp </span>map.jpg gs://<span class="nv">$bucket</span>
+</code></pre></div></div>
+
+<p>Verify that the thumbnails are created in the bucket automatically.</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/thumbnail-created.png" alt="Thumbnail Created" style="width:640px" /></p>
+
+<h2 id="task-5---remove-user-2-access-from-the-project">Task 5 - Remove User 2 Access from the Project</h2>
+
+<p>Finally, we’re told to remove user 2, who has been given <code class="language-plaintext highlighter-rouge">Viewer</code> access to our project.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> ~
+gcloud projects get-iam-policy <span class="nv">$prj</span> <span class="nt">--format</span><span class="o">=</span>json <span class="o">&gt;</span> policy.json
+</code></pre></div></div>
+
+<p>Edit the policy, and remove the user:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/upd-pol.png" alt="Thumbnail Created" style="width:640px" /></p>
+
+<p>Now apply the new policy:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># edit the policy</span>
+gcloud projects set-iam-policy <span class="nv">$prj</span> policy.json
+</code></pre></div></div>
+
+<p>All done!</p>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Generative AI with Vertex AI: Text Prompt Design | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Generative AI with Vertex AI: Text Prompt Design" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/gen-ai-vertex-ai.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/gen-ai-vertex-ai.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Generative AI with Vertex AI: Text Prompt Design" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Generative AI with Vertex AI: Text Prompt Design","url":"https://derailed-dash.github.io/gcp-challenge-labs/gen-ai-vertex-ai.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=e0cb695c2ee83a16a2375b87c164a13c944c1240">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="generative-ai-with-vertex-ai-text-prompt-design">Generative AI with Vertex AI: Text Prompt Design</h1>
+
+<p>See <a href="https://partner.cloudskillsboost.google/focuses/65981" target="_blank">Challenge Lab</a>.</p>
+
+<p>This lab is about designing and executing a number of generative AI prompts using Python, in a Jupyter notebook that is provided for you.  The Jupyter notebook is incomplete, so your job is to complete the missing code.  You will use the PaLM text bison LLM.</p>
+
+<p>The entire lab can be done in about 10 minutes.</p>
+
+<h2 id="useful-links">Useful Links</h2>
+
+<p>Google has dumped a load of prompt examples in this repo. You can get everything you need from here:</p>
+
+<p><a href="https://github.com/GoogleCloudPlatform/generative-ai/tree/main" target="_blank">Generative AI Language Notebooks on GitHub</a></p>
+
+<h2 id="tips">Tips</h2>
+
+<p>After completing each cell in the Jupyter notebook, press Shift-Enter to run that cell.</p>
+
+<h2 id="objective">Objective</h2>
+
+<p>The goal is to complete missing code in the cells of a Jupyter notebook.</p>
+
+<ol>
+  <li><a href="#launch-the-jupyterlab-environment">Launch the Vertex AI Workbench JupyterLab Environment</a></li>
+  <li><a href="#load-the-vertex-ai-language-models">Load the Vertex AI language models</a></li>
+  <li><a href="#authenticate-your-environment">Authenticate your environment</a></li>
+  <li><a href="#provide-the-imports-and-load-the-textgenerationmodel">Provide the Imports and Load the TextGenerationModel</a></li>
+  <li><a href="#demonstrate-prompt-design">Demonstrate Prompt Design</a></li>
+  <li><a href="#demonstrate-ideation">Demonstrate Ideation</a></li>
+  <li><a href="#demonstrate-text-classification">Demonstrate Text Classification</a></li>
+  <li><a href="#demonstrate-text-extraction">Demonstrate Text Extraction</a></li>
+</ol>
+
+<h2 id="launch-the-jupyterlab-environment">Launch the JupyterLab Environment</h2>
+
+<ol>
+  <li>Navigate to Vertex AI.</li>
+  <li>Enable all recommendation APIs.</li>
+  <li>Navigate to Workbench &gt; User-managed notebooks &gt; Open JupyterLag</li>
+  <li>Open the Terminal from the Launcher pane of JupyterLab.</li>
+  <li>Copy the notebook to the current folder: <br />
+<code class="language-plaintext highlighter-rouge">gsutil cp gs://cloud-training/genai/palm_challenge_lab.ipynb .</code></li>
+  <li>Open the newly downloaded notebook:</li>
+</ol>
+
+<p><img src="/gcp-challenge-labs/assets/images/palm_challenge_lab.jpg" alt="Palm Challenge Lab" /></p>
+
+<h2 id="load-the-vertex-ai-language-models">Load the Vertex AI Language Models</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Complete the following pip command
+</span><span class="err">!</span><span class="n">pip</span> <span class="n">install</span> <span class="n">google</span><span class="o">-</span><span class="n">cloud</span><span class="o">-</span><span class="n">aiplatform</span> <span class="o">--</span><span class="n">upgrade</span> <span class="o">--</span><span class="n">user</span>
+</code></pre></div></div>
+
+<h2 id="authenticate-your-environment">Authenticate Your Environment</h2>
+
+<p>Since we’re working in Vertex AI Workbench and not Colab, we don’t actually need to perform any authentication before initialising the <code class="language-plaintext highlighter-rouge">VertexAI</code> library. So you can skip this cell.</p>
+
+<h2 id="provide-the-imports-and-load-the-textgenerationmodel">Provide the Imports and Load the TextGenerationModel</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Complete the two imports
+</span><span class="kn">from</span> <span class="nn">vertexai.preview.language_models</span> <span class="kn">import</span> <span class="p">(</span><span class="n">ChatModel</span><span class="p">,</span>
+                                              <span class="n">InputOutputTextPair</span><span class="p">,</span>
+                                              <span class="n">TextEmbeddingModel</span><span class="p">,</span>
+                                              <span class="n">TextGenerationModel</span>
+                                            <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">IPython.display</span> <span class="kn">import</span> <span class="n">Markdown</span><span class="p">,</span> <span class="n">display</span>
+
+<span class="c1"># Let's load the Text Generation LLM
+</span><span class="n">TextGenerationModel</span><span class="p">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s">"text-bison@001"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="demonstrate-prompt-design">Demonstrate Prompt Design</h2>
+
+<p>Create a prediction around the prompt, “Tell me about Google’s PaLM API.” Set the temperature for the least open ended response and set the max_output_tokens for the longest response possible with the text-bison@001 model. Leave the top_k and top_p with their defaults.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">prompt</span> <span class="o">=</span> <span class="s">"Tell me about Google's PaLM API."</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">generation_model</span><span class="p">.</span><span class="n">predict</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span> 
+                                    <span class="n">temperature</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> 
+                                    <span class="n">max_output_tokens</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">response</span><span class="p">.</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="demonstrate-ideation">Demonstrate Ideation</h2>
+
+<p>Use the below template to get your model to give you 5 title ideas for a training course on Google’s Generative AI technologies. Use display and Markdown to render the results.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">prompt</span> <span class="o">=</span> <span class="s">"Generate five ideas for titles for a training course on Google's Generative AI technologies."</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">generation_model</span><span class="p">.</span><span class="n">predict</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+<span class="n">display</span><span class="p">(</span><span class="n">Markdown</span><span class="p">(</span><span class="n">response</span><span class="p">.</span><span class="n">text</span><span class="p">))</span>
+</code></pre></div></div>
+
+<h2 id="demonstrate-text-classification">Demonstrate Text Classification</h2>
+
+<p>Let’s try a language classification problem. Using the below starting code, determine the language of: “Es viernes todavía.”</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">prompt</span> <span class="o">=</span> <span class="s">"""
+Given the following:</span><span class="se">\n</span><span class="s">
+text: "Es viernes todavía."
+language: ?
+"""</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">generation_model</span><span class="p">.</span><span class="n">predict</span><span class="p">(</span><span class="n">prompt</span><span class="p">).</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><img src="/gcp-challenge-labs/assets/images/text-classification.jpg" alt="Text translation" style="width:640px" /></p>
+
+<p>Now we turn the zero-shot prompt into a one-shot prompt by supplying an example of what we want the output to look like.  We do this to reduce the response to one word: the language.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">prompt</span> <span class="o">=</span> <span class="s">"""
+Given the following text, classify the language it is written in.
+
+text: Darren loves a one-shot prompt
+language: English
+
+text: Es viernes todaví?
+language:
+"""</span>
+
+<span class="k">print</span><span class="p">(</span>
+    <span class="n">generation_model</span><span class="p">.</span><span class="n">predict</span><span class="p">(</span>
+        <span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span>
+    <span class="p">).</span><span class="n">text</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="demonstrate-text-extraction">Demonstrate Text Extraction</h2>
+
+<p>Convert the list of cooking ingredients to a YAML file with the keys: ingredient, quantity, type.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">prompt</span> <span class="o">=</span> <span class="s">"""
+Extract the cooking ingredients from the text below, 
+and convert to a YAML file with keys of: ingredient, quantity, type.
+
+Ingredients:
+9 egg whites
+3/8 tsp Cream of Tartar
+1 1/2 tbs Viniger
+1 1/2 tsp Vanilla
+3 cups Sugar
+1 quarts Heavy whipping cream
+3 boxes Strawberries
+
+JSON: 
+"""</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">generation_model</span><span class="p">.</span><span class="n">predict</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">max_output_tokens</span><span class="o">=</span><span class="mi">1024</span><span class="p">).</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Note that you need to change the number of output tokens, otherwise your YAML will be incomplete.</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/extract-to-yaml.jpg" alt="Text translation" style="width:480px" /></p>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>

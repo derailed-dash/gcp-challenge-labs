@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Perform Foundational Data, ML, and AI Tasks in Google Cloud | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Perform Foundational Data, ML, and AI Tasks in Google Cloud" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/foundational-data-ml-ai.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/foundational-data-ml-ai.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Perform Foundational Data, ML, and AI Tasks in Google Cloud" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Perform Foundational Data, ML, and AI Tasks in Google Cloud","url":"https://derailed-dash.github.io/gcp-challenge-labs/foundational-data-ml-ai.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=e0cb695c2ee83a16a2375b87c164a13c944c1240">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="perform-foundational-data-ml-and-ai-tasks-in-google-cloud">Perform Foundational Data, ML, and AI Tasks in Google Cloud</h1>
+
+<p>See <a href="https://partner.cloudskillsboost.google/focuses/13318?parent=catalog" target="_blank">Challenge Lab</a></p>
+
+<h2 id="objective">Objective</h2>
+
+<p>This lab is in three parts:</p>
+
+<ol>
+  <li><a href="#create-a-simple-dataflow-job">Create a simple DataFlow job</a></li>
+  <li><a href="#create-a-simple-dataproc-job">Create a simple Dataproc job</a></li>
+  <li><a href="#create-a-simple-dataprep-job">Create a simple Dataprep job</a></li>
+  <li><a href="#perform-one-of-the-three-google-machine-learning-backed-api-tasks">Perform one of the three Google machine learning backed API tasks</a></li>
+</ol>
+
+<p>If done efficiently, you can probably complete this whole lab in about 20 minutes.</p>
+
+<h2 id="setup">Setup</h2>
+
+<p>First, let’s define some variables we can use throughout this challenge.  In Cloud Shell:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">PROJECT_ID</span><span class="o">=</span>&lt;what the lab tells you&gt;
+<span class="nb">export </span><span class="nv">BUCKET_NAME</span><span class="o">=</span>&lt;whatever the lab tells you&gt;
+<span class="nb">export </span><span class="nv">lab</span><span class="o">=</span>&lt;what the lab tells you&gt;
+<span class="nb">export </span><span class="nv">region</span><span class="o">=</span>&lt;what the lab tells you&gt;
+<span class="nb">export </span><span class="nv">machine_type</span><span class="o">=</span>e2-standard-2
+</code></pre></div></div>
+
+<h2 id="create-a-simple-dataflow-job">Create a simple DataFlow job</h2>
+
+<h3 id="objectives">Objectives</h3>
+
+<p>We need to ingest a csv file, and process the data into BigQuery, using a Dataflow template. Dataflow requires Google Cloud Storage for temporary data.</p>
+
+<h3 id="my-solution">My Solution</h3>
+
+<p>First, we create a three node cluster, using the required machine type for our nodes.  Note that this takes a couple of minutes to run.</p>
+
+<p>It’s crucial to get your storagea and BigQuery regions right!</p>
+
+<p>In Cloud Shell:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bq <span class="nt">--location</span><span class="o">=</span><span class="nv">$region</span> mk <span class="nv">$lab</span>
+gsutil mb <span class="nt">-l</span> <span class="nv">$region</span> gs://<span class="nv">$BUCKET_NAME</span>/
+</code></pre></div></div>
+
+<p>Now we can simply create the Dataflow job from the Console:</p>
+
+<ol>
+  <li>Console –&gt; Dataflow</li>
+  <li>Create Job from Template</li>
+  <li>Enter the job parameters from the lab</li>
+  <li>Run the job.</li>
+</ol>
+
+<p>That’s it!  You can monitor the job progress in the Dataflow page.  It takes a couple of minutes to run.</p>
+
+<h2 id="create-a-simple-dataproc-job">Create a simple Dataproc job</h2>
+
+<h3 id="objectives-1">Objectives</h3>
+
+<p>We’re asked to create a Dataproc cluster with some specific configuration settings.  Once the cluster is created, we need to SSH onto one of the clusters nodes, and from there, copy the input text from GCS to the HDFS storage of the Dataproc cluster itself. We then need to run a Spark job that we’ve been given.</p>
+
+<h3 id="my-solution-1">My Solution</h3>
+
+<p>In Cloud Shell:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud config <span class="nb">set </span>dataproc/region <span class="nv">$region</span>
+gcloud dataproc clusters create my-cluster <span class="se">\</span>
+  <span class="nt">--worker-machine-type</span><span class="o">=</span><span class="nv">$machine_type</span> <span class="se">\</span>
+  <span class="nt">--num-workers</span><span class="o">=</span>2 <span class="se">\</span>
+  <span class="nt">--worker-boot-disk-size</span> 500
+</code></pre></div></div>
+
+<p>This creates a cluster with two workers, using the specified machine type.  It takes a couple of minutes for the cluster to be created. Once it has been created, open the Compute Engine page, and from there, SSH onto one of the worker machines in the cluster.</p>
+
+<p>From the SSH session:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>hdfs dfs <span class="nt">-cp</span> gs://cloud-training/gsp323/data.txt /data.txt
+</code></pre></div></div>
+
+<p>Now, back in Cloud Shell:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud dataproc <span class="nb">jobs </span>submit spark <span class="nt">--cluster</span> my-cluster <span class="se">\</span>
+  <span class="nt">--class</span> org.apache.spark.examples.SparkPageRank <span class="se">\</span>
+  <span class="nt">--max-failures-per-hour</span><span class="o">=</span>1 <span class="se">\</span>
+  <span class="nt">--jars</span> file:///usr/lib/spark/examples/jars/spark-examples.jar <span class="nt">--</span> /data.txt
+</code></pre></div></div>
+
+<p>This runs a Spark job with a main class of <code class="language-plaintext highlighter-rouge">org.apache.spark.examples.SparkPageRank</code>, with the specified jar location, with max retries set to <code class="language-plaintext highlighter-rouge">1</code>, and with the final parameter of <code class="language-plaintext highlighter-rouge">/data.txt</code>, which is read from HDFS.</p>
+
+<p>It runs and completes pretty quickly.</p>
+
+<h2 id="create-a-simple-dataprep-job">Create a simple Dataprep job</h2>
+
+<h3 id="objectives-2">Objectives</h3>
+
+<p>Here we’re going to do some simple data wrangling of an input csv file, using Dataprep.</p>
+
+<h3 id="my-solution-2">My Solution</h3>
+
+<p>This is all done through the Console.</p>
+
+<ol>
+  <li>Launch Dataprep.  Accept all the prompts.</li>
+  <li>Select <code class="language-plaintext highlighter-rouge">New Flow</code>.</li>
+  <li>Import data –&gt; Cloud Storage –&gt; Edit path: <code class="language-plaintext highlighter-rouge">gs://cloud-training</code></li>
+  <li>Now search for the folder you’ve been given, e.g. <code class="language-plaintext highlighter-rouge">gsp323</code>.</li>
+  <li>Find the <code class="language-plaintext highlighter-rouge">runs.csv</code> file and select it.</li>
+  <li>Import and add to flow.</li>
+</ol>
+
+<p>Name the flow.  E.g. <code class="language-plaintext highlighter-rouge">Lab Runs</code>.  (What you call it doesn’t matter.)</p>
+
+<p>Now we’ll edit the recipe:</p>
+
+<ol>
+  <li>runs –&gt; Edit recipe</li>
+  <li>Select the column that contains the <em>state</em>, and select the taller column that represents <code class="language-plaintext highlighter-rouge">SUCCESS</code>. <code class="language-plaintext highlighter-rouge">Keep rows</code> –&gt; Add.</li>
+  <li>Add step –&gt; Filter contains –&gt; Condition=contains, column=9, pattern to match=<code class="language-plaintext highlighter-rouge">/(^0$|^0\.0$)/</code> –&gt; Delete macthing rows.</li>
+  <li>Finally, let’s rename all the columns as requested, by selecting <code class="language-plaintext highlighter-rouge">New step</code> and then entering the following:</li>
+</ol>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>rename type: manual mapping: [column2,'runid'],[column3,'userid'],[column4,'labid'],[column5,'lab_title'],[column6,'start'],[column7,'end'],[column8,'time'],[column9,'score'],[column10,'state']
+</code></pre></div></div>
+
+<p>Finally, <strong>Run</strong> the job, and run it with Dataflow.</p>
+
+<p>It takes a couple of minutes.</p>
+
+<h2 id="perform-one-of-the-three-google-machine-learning-backed-api-tasks">Perform one of the three Google machine learning backed API tasks</h2>
+
+<h3 id="objectives-3">Objectives</h3>
+
+<p>You can do any of the three ML API tasks.  But here, I’ve gone with the <strong>Natural Language API</strong> task. For this task, we need to analyse the text:</p>
+
+<p><em>“Old Norse texts portray Odin as one-eyed and long-bearded, frequently wielding a spear named Gungnir and wearing a cloak and a broad hat.”</em></p>
+
+<h3 id="my-solution-3">My Solution</h3>
+
+<p>We need to create a service account, obtain its key file, give the service the <em>storage.admin</em> role:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud iam service-accounts create lab-svc
+
+<span class="c"># create service account key file, replacing the project name below</span>
+gcloud iam service-accounts keys create key.json <span class="nt">--iam-account</span> lab-svc@<span class="nv">$PROJECT_ID</span>.iam.gserviceaccount.com
+
+<span class="c"># Add storage admin</span>
+gcloud projects add-iam-policy-binding <span class="nv">$PROJECT_ID</span> <span class="nt">--member</span><span class="o">=</span>serviceAccount:lab-svc@<span class="nv">$PROJECT_ID</span>.iam.gserviceaccount.com <span class="nt">--role</span><span class="o">=</span>roles/storage.admin
+
+<span class="nb">export </span><span class="nv">GOOGLE_APPLICATION_CREDENTIALS</span><span class="o">=</span><span class="s2">"/home/</span><span class="nv">$USER</span><span class="s2">/key.json"</span>
+
+<span class="c"># authenticate (activate) the service account</span>
+gcloud auth activate-service-account <span class="nt">--key-file</span> key.json
+</code></pre></div></div>
+
+<p>Now we can call the API:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud ml language analyze-entities <span class="nt">--content</span><span class="o">=</span><span class="s2">"Old Norse texts portray Odin as one-eyed and long-bearded, frequently wielding a spear named Gungnir and wearing a cloak and a broad hat."</span> <span class="o">&gt;</span> result.json
+</code></pre></div></div>
+
+<p>Finally, we need to copy the result file to the specified bucket, in order for the lab to validate.  Your required file name might be different.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gsutil <span class="nb">cp </span>result.json gs://<span class="nv">$PROJECT_ID</span><span class="nt">-marking</span>/task4-cnl-907.result
+</code></pre></div></div>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>

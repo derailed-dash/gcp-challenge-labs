@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Monitor and Log with Google Cloud Operations Suite | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Monitor and Log with Google Cloud Operations Suite" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/monitor-and-log-with-gco.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/monitor-and-log-with-gco.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Monitor and Log with Google Cloud Operations Suite" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Monitor and Log with Google Cloud Operations Suite","url":"https://derailed-dash.github.io/gcp-challenge-labs/monitor-and-log-with-gco.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=e0cb695c2ee83a16a2375b87c164a13c944c1240">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="monitor-and-log-with-google-cloud-operations-suite">Monitor and Log with Google Cloud Operations Suite</h1>
+
+<p>See <a href="https://www.cloudskillsboost.google//course_sessions/5101003/labs/408319" target="_blank">Challenge Lab</a></p>
+
+<h1 id="challenge">Challenge</h1>
+
+<p>We’re told that we have a Cloud Function that is responsible for subscriber video file upload and subsequent transcoding. We need to make use of Google Cloud Operations to provide insight around use of this Function.</p>
+
+<p>In this lab, we’re going to:</p>
+
+<ul>
+  <li>Initialize Cloud Monitoring.</li>
+  <li>Configure a Compute Engine application for Cloud Operations Monitoring custom metrics.</li>
+  <li>Create a custom metric using Cloud Operations logging events.</li>
+  <li>Add custom metrics to a Cloud Monitoring Dashboard.</li>
+  <li>Create a Cloud Operations alert.</li>
+</ul>
+
+<h1 id="general-guidance">General Guidance</h1>
+
+<p>We’re given some tips. These definitely make life easier! We’re told that:</p>
+
+<ol>
+  <li>The startup script for the Compute Instance is in the Compute Instance metadata key called <code class="language-plaintext highlighter-rouge">startup_script</code>.</li>
+  <li>The Compute Instance must have the Cloud Monitoring agent installed and the Go application requires environment variables to be configured with the Google Cloud project, the instance ID, and the compute engine zone.</li>
+  <li>The Video Queue length monitoring Go application writes the queue length metric data to a metric called <code class="language-plaintext highlighter-rouge">custom.googleapis.com/opencensus/my.videoservice.org/measure/input_queue_size</code> associated with the gce_instance resource type.</li>
+  <li>To create the custom log based metric, the easiest filter to use is the advanced filter query textPayload=~”file_format: ([4,8]K).*”. That is a regular expression that matches all Cloud Operations events for the two high resolution video formats you are interested in. You can use the same regular expression and configure labels in the metric definition, which creates a separate time series for each of the two high resolution formats.</li>
+  <li>You must use the name provided for the custom log based metric that monitors the rate at which high resolution videos are processed: <code class="language-plaintext highlighter-rouge">Custom Metric Name</code>.</li>
+</ol>
+
+<h1 id="my-solution">My Solution</h1>
+
+<p>This is a fairly quick lab, so I didn’t bother doing it with the Cloud CLI.  All the steps described below are done using the Google Cloud Console.</p>
+
+<h2 id="task-1---configure-cloud-monitoring">Task 1 - Configure Cloud Monitoring</h2>
+
+<p>A basic Cloud Monitoring dashboard, called <code class="language-plaintext highlighter-rouge">Media_Dashboard</code> has already been made available to us, but we have to <strong>enable Cloud Monitoring</strong> in our project.</p>
+
+<p>This is super-easy to do!  Just navigate to <code class="language-plaintext highlighter-rouge">Monitoring</code> from the Console.</p>
+
+<h2 id="task-2---configure-a-compute-instance-to-generate-custom-cloud-monitoring-metrics">Task 2 - Configure a Compute Instance to generate Custom Cloud Monitoring metrics</h2>
+
+<p>We’re told we have a monitoring service which creates a <em>custom metric</em> called <code class="language-plaintext highlighter-rouge">opencensus/my.videoservice.org/measure/input_queue_size</code>. This service runs as a <em>Go</em> application on a Compute Engine instance called <code class="language-plaintext highlighter-rouge">video-queue-monitor</code>. The <em>Go</em> application uses <em>OpenCensus</em> to write custom metrics to GCO. The instance has already been deployed for us, and a <strong>startup-script</strong> installs and runs the monitoring application. The startup-script is incomplete.</p>
+
+<p>From the console, edit the instance, and navigate to <strong>Management -&gt; Metadata</strong>. Look at the <code class="language-plaintext highlighter-rouge">startup-script</code>.</p>
+
+<p>You’ll see that the script requires you to supply the project ID, instance ID, and zone. We’re given the project ID and zone already.  We can get the instance Id from the <strong>Basic information</strong> view of the VM.</p>
+
+<p>Add these values, save your changes, and now reset the instance.</p>
+
+<p>Then check tha metric <code class="language-plaintext highlighter-rouge">input_queue_size</code> is being written, in the <strong>Metrics Explorer</strong>.  Note that it might take a few minutes before the metric is visible.  So refresh the <strong>Metrics Explorer</strong>, then from the Metrics dropdown, you can search for <code class="language-plaintext highlighter-rouge">input_queue</code>.</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/metric_input_queue.png" alt="Metric input_queue_size" /></p>
+
+<p><img src="/gcp-challenge-labs/assets/images/metrics_explorer_input_queue.png" alt="Metrics Explorer input_queue" /></p>
+
+<h2 id="task-3---create-a-custom-metric-using-cloud-operations-logging-events">Task 3 - Create a custom metric using Cloud Operations logging events</h2>
+
+<p>Here we’re going to create a custom metric from logs. We’re told that a Cloud Function creates a log entry that includes metadata.  We need to create a custom metric by reading the log entries, and using these to determine the rate at which high resolution video files are uploaded.</p>
+
+<p>Navigate to <strong>Logging -&gt; Logs Explorer</strong>.</p>
+
+<p>Click on <strong>Create metric</strong>. Use the following values:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">Type = Counter (the default)</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Name = large_video_upload_rate</code> (your metric name might be different)</li>
+  <li><code class="language-plaintext highlighter-rouge">textPayload=~"file_format\: ([4,8]K).*"</code></li>
+</ul>
+
+<p>(Note that we’ve already been given the advanced filter query.)</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/logs-based-metric.png" alt="Metrics Explorer input_queue" /></p>
+
+<h2 id="task-4---add-custom-metrics-to-the-media-dashboard-in-cloud-operations-monitoring">Task 4 - Add custom metrics to the Media Dashboard in Cloud Operations Monitoring</h2>
+
+<p>Select Monitoring -&gt; Metrics Scope -&gt; <strong>Dashboard</strong>. Then select <code class="language-plaintext highlighter-rouge">Media_Dashboard</code> from the list of dashboards. (This dashboard has been created for us already.)</p>
+
+<h3 id="first-chart">First Chart</h3>
+
+<ol>
+  <li>Add widget -&gt; Visualisation -&gt; Line</li>
+  <li>Select a metric -&gt; Metric dropdown -&gt; Search for “queue” to find your custom metric. Apply.</li>
+  <li>Apply again.</li>
+</ol>
+
+<h3 id="second-chart">Second Chart</h3>
+
+<ol>
+  <li>Add widget -&gt; Visualisation -&gt; Line</li>
+  <li>Select a metric -&gt; Metric dropdown -&gt; Uncheck “Active resources &amp; metrics” -&gt; Search for <code class="language-plaintext highlighter-rouge">large</code> (or whatever your logs-based metric was called), to find your metric. Apply.</li>
+  <li>Apply again.</li>
+</ol>
+
+<h2 id="task-5---create-a-cloud-operations-alert-based-on-the-rate-of-high-resolution-video-file-uploads">Task 5 - Create a Cloud Operations alert based on the rate of high resolution video file uploads</h2>
+
+<p>Here we need to trigger an alert if our upload rate exceeds the specified value. We can create an alert using the logs-based metric we created previously</p>
+
+<p>Navigate to <strong>Logging -&gt; Logs-Based Metrics</strong>.  Select the three dots next to the logs-based metric for video upload rate, and select <code class="language-plaintext highlighter-rouge">Create alert from metric</code>.</p>
+
+<p>Select <strong>New condition</strong>, and use these parameters:</p>
+<ul>
+  <li>Rolling window = 1 minute</li>
+  <li>Rolling window function = rate</li>
+  <li>Time series aggregation = none</li>
+</ul>
+
+<p>Select <strong>Configure trigger</strong>, and use these parameters:</p>
+<ul>
+  <li>Type = Threshold</li>
+  <li>Alert trigger = Any time series violates</li>
+  <li>Threshold position = Above threshold</li>
+  <li>Threshodl value = the value you’ve been given</li>
+</ul>
+
+<p>Select <strong>Notifications</strong>:</p>
+<ul>
+  <li>You can turn off <code class="language-plaintext highlighter-rouge">Use notification channel</code>.</li>
+  <li>Or, if you prefer, you could have it send notifications to an email address.</li>
+</ul>
+
+<p><strong>Name the alert policy</strong>. You can choose whatever you like.  I called it <code class="language-plaintext highlighter-rouge">Uploads exceeded threshold</code>.</p>
+
+<p>Finally, click on <strong>Create policy</strong>.</p>
+
+<p>And that’s it!</p>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>

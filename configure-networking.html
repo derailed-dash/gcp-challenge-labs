@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Configure Google Cloud Networking | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Configure Google Cloud Networking" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/configure-networking.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/configure-networking.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Configure Google Cloud Networking" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Configure Google Cloud Networking","url":"https://derailed-dash.github.io/gcp-challenge-labs/configure-networking.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=e0cb695c2ee83a16a2375b87c164a13c944c1240">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="configure-google-cloud-networking">Configure Google Cloud Networking</h1>
+
+<p>See <a href="https://www.cloudskillsboost.google/focuses/60966?parent=catalog" target="_blank">Challenge Lab</a></p>
+
+<h1 id="challenge">Challenge</h1>
+
+<p>You’ve been asked to:</p>
+
+<ol>
+  <li><a href="#create-a-vpc-network">Create a VPC network</a></li>
+  <li><a href="#create-a-firewall-rule">Create a Firewall rule</a></li>
+  <li><a href="#create-the-vm-instance-with-no-public-ip-address">Create the VM instance with no public IP address</a></li>
+  <li><a href="#connect-to-cymbal-vm-internal-via-ssh-to-test-the-iap-tunnel">Connect to cymbal-vm-internal via SSH to test the IAP tunnel</a></li>
+  <li><a href="#enable-private-google-access">Enable Private Google Access</a></li>
+  <li><a href="#enable-vpc-flow-logs">Enable VPC Flow logs</a></li>
+  <li><a href="#create-a-cloud-nat-gateway">Create a Cloud NAT gateway</a></li>
+  <li><a href="#verify-the-cloud-nat-gateway">Verify the Cloud NAT gateway</a></li>
+</ol>
+
+<h1 id="my-solution">My Solution</h1>
+
+<p>I prefer to use the Cloud Shell and gcloud CLI, because it makes the steps much more repeatable.</p>
+
+<h2 id="prep">Prep</h2>
+
+<p>Let’s start by defining some variables we can use throughout this challenge. Run the following from the Cloud Shell:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud auth list
+
+<span class="c"># Network</span>
+<span class="nv">prj</span><span class="o">=</span>&lt;enter-your-project&gt; <span class="c"># use your own project ID</span>
+<span class="nv">region</span><span class="o">=</span>us-central1
+<span class="nv">vpc_name</span><span class="o">=</span>cymbal-privatenet
+<span class="nv">subnet_name</span><span class="o">=</span>cymbal-privatenet-us
+<span class="nv">subnet_ip_range</span><span class="o">=</span>10.0.0.0/24
+<span class="nv">nat_router</span><span class="o">=</span>cymbal-nat-router
+<span class="nv">nat_gateway</span><span class="o">=</span>cymbal-nat-config
+
+<span class="c"># IAP firewall rule</span>
+<span class="nv">fw_rule_iap</span><span class="o">=</span>cymbal-privatenet-allow-iap-ssh
+<span class="nv">iap_src_range</span><span class="o">=</span>35.235.240.0/20 <span class="c"># standard IAP range</span>
+
+<span class="c"># private instance</span>
+<span class="nv">instance_name</span><span class="o">=</span>cymbal-vm-internal
+<span class="nv">zone</span><span class="o">=</span>us-central1-c
+<span class="nv">mach_type</span><span class="o">=</span>e2-micro
+
+<span class="c"># setting defaults</span>
+gcloud config <span class="nb">set </span>project <span class="nv">$prj</span>  
+gcloud config <span class="nb">set </span>compute/region <span class="nv">$region</span>
+gcloud config <span class="nb">set </span>compute/zone <span class="nv">$zone</span>
+</code></pre></div></div>
+
+<p>Substitute for any variables you’ve been given.</p>
+
+<h2 id="create-a-vpc-network">Create a VPC network</h2>
+
+<p>Remember: don’t enable Google private access yet.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute networks create <span class="nv">$vpc_name</span> <span class="nt">--subnet-mode</span><span class="o">=</span>custom
+gcloud compute networks subnets create <span class="nv">$subnet_name</span> <span class="se">\</span>
+  <span class="nt">--range</span><span class="o">=</span><span class="nv">$subnet_ip_range</span> <span class="nt">--stack-type</span><span class="o">=</span>IPV4_ONLY <span class="se">\</span>
+  <span class="nt">--network</span><span class="o">=</span><span class="nv">$vpc_name</span> <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span>
+</code></pre></div></div>
+
+<h2 id="create-a-firewall-rule">Create a Firewall rule</h2>
+
+<p>Here we define a firewall rule to allow ingress from the IAP proxies to machines in our network. 
+When tunnelling SSH over IAP, the IAP proxies connect to the instance’s internal IP address.</p>
+
+<p>Guidance for SSH over IAP can be found <a href="https://cloud.google.com/iap/docs/using-tcp-forwarding" target="_blank">here</a></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute firewall-rules create <span class="nv">$fw_rule_iap</span> <span class="nt">--network</span> <span class="nv">$vpc_name</span> <span class="se">\</span>
+  <span class="nt">--direction</span><span class="o">=</span>INGRESS <span class="nt">--allow</span> tcp:22 <span class="nt">--source-ranges</span><span class="o">=</span><span class="s2">"</span><span class="nv">$iap_src_range</span><span class="s2">"</span>
+</code></pre></div></div>
+
+<h2 id="create-the-vm-instance-with-no-public-ip-address">Create the VM instance with no public IP address</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute instances create <span class="nv">$instance_name</span> <span class="se">\</span>
+  <span class="nt">--network</span><span class="o">=</span><span class="nv">$vpc_name</span> <span class="nt">--subnet</span><span class="o">=</span><span class="nv">$subnet_name</span> <span class="se">\</span>
+  <span class="nt">--machine-type</span><span class="o">=</span><span class="nv">$mach_type</span> <span class="nt">--image-project</span><span class="o">=</span>debian-cloud <span class="nt">--image-family</span><span class="o">=</span>debian-11 <span class="se">\</span>
+  <span class="nt">--no-address</span>
+</code></pre></div></div>
+
+<p>Note, if we wanted, we could also enable <code class="language-plaintext highlighter-rouge">OS Login</code> to control access to the instances using IAM permissions. In this case, we would do the following:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># First when creating the instance, add this flag:</span>
+<span class="c"># --metadata enable-oslogin=true</span>
+
+<span class="c"># Then assign OS Login IAM roles to our user</span>
+gcloud projects add-iam-policy-binding <span class="nv">$prj</span> <span class="se">\</span>
+    <span class="nt">--member</span><span class="o">=</span>user:EMAIL <span class="se">\</span>
+    <span class="nt">--role</span><span class="o">=</span>roles/compute.osLogin
+</code></pre></div></div>
+
+<p>Check in the console that your instance has no external IP address.</p>
+
+<h2 id="connect-to-cymbal-vm-internal-via-ssh-to-test-the-iap-tunnel">Connect to cymbal-vm-internal via SSH to test the IAP tunnel</h2>
+
+<p>Now we use SSH to connect to the VM, tunnelling SSH over IAP. Whenever a VM does not have an external IP address (like our VM), then <code class="language-plaintext highlighter-rouge">gcloud compute ssh</code> automatically tunnels over IAP. But regardless, we can explicitly specify that the connection uses the IAP tunnel by specifying <code class="language-plaintext highlighter-rouge">--tunnel-through-iap</code>.</p>
+
+<p>If our user did not have permission to use IAP to access our instances, then we could add the roles defined below. However, in this lab, our user already has necessary permission.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># grant roles for IAP TCP forwarding and SSH access</span>
+gcloud projects add-iam-policy-binding <span class="nv">$prj</span> <span class="se">\</span>
+    <span class="nt">--member</span><span class="o">=</span>user:EMAIL <span class="se">\</span>
+    <span class="nt">--role</span><span class="o">=</span>roles/iap.tunnelResourceAccessor
+
+gcloud projects add-iam-policy-binding <span class="nv">$prj</span> <span class="se">\</span>
+    <span class="nt">--member</span><span class="o">=</span>user:EMAIL <span class="se">\</span>
+    <span class="nt">--role</span><span class="o">=</span>roles/compute.instanceAdmin.v1
+</code></pre></div></div>
+
+<p>Now let’s actually connect with SSH:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute ssh <span class="nv">$instance_name</span> <span class="nt">--tunnel-through-iap</span>
+</code></pre></div></div>
+
+<p>If you use a passphrase for your SSH connection, make a note of it. Once we’ve checked the connectivity works, you can <code class="language-plaintext highlighter-rouge">exit</code> from the SSH session.</p>
+
+<h2 id="enable-private-google-access">Enable Private Google Access</h2>
+
+<p>Now we enable Private Google Access. This allows VM instances without external IP addresses to reach public Google APIs and services, through the VPC’s default internet gateway. Private Google Access is enabled at the subnet level.</p>
+
+<p>Back in Cloud Shell:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute networks subnets update <span class="nv">$subnet_name</span> <span class="se">\</span>
+  <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span> <span class="nt">--enable-private-ip-google-access</span>
+
+<span class="c"># You can verify with this</span>
+gcloud compute networks subnets describe <span class="nv">$subnet_name</span> <span class="se">\</span>
+  <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span> <span class="nt">--format</span><span class="o">=</span><span class="s2">"get(privateIpGoogleAccess)"</span>
+</code></pre></div></div>
+
+<h2 id="enable-vpc-flow-logs">Enable VPC Flow logs</h2>
+
+<p>VPC Flow logs record a sample of network flows sent from and received by VM instances. VPC flow logs are also configured at subnet level.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud compute networks subnets update <span class="nv">$subnet_name</span> <span class="se">\</span>
+  <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span> <span class="nt">--enable-flow-logs</span>
+</code></pre></div></div>
+
+<h2 id="create-a-cloud-nat-gateway">Create a Cloud NAT gateway</h2>
+
+<p>Although our instance can now access Google APIs and services, it still can’t access resources on the Internet.  We can enable outbound access from our VM - even though it has no external IP address - by using Cloud NAT.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># First, we need to create a Cloud Router</span>
+gcloud compute routers create <span class="nv">$nat_router</span> <span class="se">\</span>
+  <span class="nt">--project</span><span class="o">=</span><span class="nv">$prj</span> <span class="nt">--network</span><span class="o">=</span><span class="nv">$vpc_name</span> <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span>  
+
+<span class="c"># Then we can create the NAT Gateway</span>
+gcloud compute routers nats create <span class="nv">$nat_gateway</span> <span class="se">\</span>
+  <span class="nt">--region</span><span class="o">=</span><span class="nv">$region</span> <span class="nt">--router</span><span class="o">=</span><span class="nv">$nat_router</span> <span class="se">\</span>
+  <span class="nt">--auto-allocate-nat-external-ips</span> <span class="nt">--nat-all-subnet-ip-ranges</span> <span class="se">\</span>
+  <span class="nt">--enable-logging</span>
+</code></pre></div></div>
+
+<h2 id="verify-the-cloud-nat-gateway">Verify the Cloud NAT gateway</h2>
+
+<p>Finally, we can test that our instance has Internet connectivity. Once again, connect using SSH over IAP.</p>
+
+<p>And then, from the SSH session:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>apt-get update
+</code></pre></div></div>
+
+<p>The update should run fine.</p>
+
+<p>And we’re done!</p>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>

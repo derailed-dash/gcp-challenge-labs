@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Build and Optimise Data Warehouses with BigQuery | Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs</title>
+<meta name="generator" content="Jekyll v3.9.2" />
+<meta property="og:title" content="Build and Optimise Data Warehouses with BigQuery" />
+<meta name="author" content="Dazbo" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<meta property="og:description" content="My experience and walkthroughs with the GCP Skillsboost Challange Labs." />
+<link rel="canonical" href="https://derailed-dash.github.io/gcp-challenge-labs/dw-with-bq.html" />
+<meta property="og:url" content="https://derailed-dash.github.io/gcp-challenge-labs/dw-with-bq.html" />
+<meta property="og:site_name" content="Dazbo’s GCP Skillsboost Challenge Lab Walkthroughs" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Build and Optimise Data Warehouses with BigQuery" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Dazbo"},"description":"My experience and walkthroughs with the GCP Skillsboost Challange Labs.","headline":"Build and Optimise Data Warehouses with BigQuery","url":"https://derailed-dash.github.io/gcp-challenge-labs/dw-with-bq.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <link rel="stylesheet" href="/gcp-challenge-labs/assets/css/style.css?v=e0cb695c2ee83a16a2375b87c164a13c944c1240">
+    <script src="/gcp-challenge-labs/assets/js/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Setup Google Analytics -->
+
+
+
+<link rel="shortcut icon" type="image/x-icon" href="https://derailed-dash.github.io/gcp-challenge-labs/favicon.ico" >
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header >
+        <h1>Dazbo's GCP Skillsboost Challenge Lab Walkthroughs</h1>
+        
+          <p>My experience and walkthroughs with the GCP Skillsboost Challange Labs.</p>
+        
+        <nav>
+    <ol class="breadcrumb">
+        
+        
+        <li class="breadcrumb-item">
+            <a href="/gcp-challenge-labs/">Home</a>
+        </li>
+        
+    </ol>
+</nav>
+        <ul>
+        
+          <li><a href="https://github.com/derailed-dash/derailed-dash.github.io" target="_blank">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+      <h1 id="build-and-optimise-data-warehouses-with-bigquery">Build and Optimise Data Warehouses with BigQuery</h1>
+
+<p>See <a href="https://partner.cloudskillsboost.google/focuses/14827?parent=catalog" target="_blank">Challenge Lab</a></p>
+
+<h2 id="overview">Overview</h2>
+
+<p>“You are part of an international public health organisation which is tasked with developing a machine learning model to predict the daily case count for countries during the Covid-19 pandemic. As a junior member of the Data Science team you’ve been assigned to use your data warehousing skills to develop a table containing the features for the machine learning model.”</p>
+
+<p>Topics tested:</p>
+
+<ul>
+  <li>Use BigQuery to access public COVID and other demographic datasets.</li>
+  <li>Create a new BigQuery dataset which will store your tables.</li>
+  <li>Add a new date partitioned table to your dataset.</li>
+  <li>Add new columns to this table with appropriate data types.</li>
+  <li>Run a series of JOINS to populate these new columns with data drawn from other tables.</li>
+</ul>
+
+<h2 id="objectives-overview">Objectives Overview</h2>
+
+<ol>
+  <li><a href="#create-date-partitioned-table">Create Date-Partitioned Table</a></li>
+  <li><a href="#add-columns-to-the-schema">Add Columns to the Schema</a></li>
+  <li><a href="#add-country-population-data">Add Country Population Data</a></li>
+  <li><a href="#add-country-area-data">Add Country Area Data</a></li>
+  <li><a href="#add-mobility-averages-data">Add Mobility Averages Data</a></li>
+  <li><a href="#query-missing-data">Query Missing Data</a></li>
+</ol>
+
+<h2 id="setup">Setup</h2>
+
+<p>First, make a note of your <code class="language-plaintext highlighter-rouge">dataset_name</code> and your <code class="language-plaintext highlighter-rouge">table_name</code>.  For this doc, I’ll be using <code class="language-plaintext highlighter-rouge">covid_733</code> and <code class="language-plaintext highlighter-rouge">oxford_policy_tracker_360</code>, respectively.</p>
+
+<p>Now, create your dataset.  I did this in the Cloud Console. I.e. <code class="language-plaintext highlighter-rouge">Create Data Set</code>, and call it <code class="language-plaintext highlighter-rouge">covid_733</code>. We can leave everything else with defaults. If you prefer, you could use <code class="language-plaintext highlighter-rouge">bq</code> from the command line.</p>
+
+<h2 id="create-date-partitioned-table">Create Date-Partitioned Table</h2>
+
+<p>We need to create our <code class="language-plaintext highlighter-rouge">oxford_policy_tracker_360</code> table, which should be a copy of the <code class="language-plaintext highlighter-rouge">bigquery-public-data.covid19_govt_response.oxford_policy_tracker</code>, but should be:</p>
+
+<ul>
+  <li>Partitioned by date</li>
+  <li>With expiry of 720 days</li>
+  <li>And exclude certain regions.</li>
+</ul>
+
+<p>This was my solution:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">OR</span> <span class="k">REPLACE</span> <span class="k">TABLE</span> <span class="n">covid_733</span><span class="p">.</span><span class="n">oxford_policy_tracker_360</span>
+<span class="n">PARTITION</span> <span class="k">BY</span> <span class="nb">date</span>
+<span class="k">OPTIONS</span><span class="p">(</span>
+  <span class="n">partition_expiration_days</span><span class="o">=</span><span class="mi">720</span><span class="p">,</span>
+  <span class="n">description</span><span class="o">=</span><span class="nv">"oxford_policy_tracker partitioned by date"</span>
+<span class="p">)</span> <span class="k">AS</span>
+<span class="k">SELECT</span> <span class="o">*</span>
+<span class="k">FROM</span> <span class="nv">`bigquery-public-data.covid19_govt_response.oxford_policy_tracker`</span>
+<span class="k">WHERE</span> <span class="n">alpha_3_code</span> <span class="k">NOT</span> <span class="k">IN</span> <span class="p">(</span><span class="nv">"GBR"</span><span class="p">,</span> <span class="nv">"BRA"</span><span class="p">,</span> <span class="nv">"CAN"</span><span class="p">,</span> <span class="nv">"USA"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>It simply creates a new table, sets up partitioning, and defines/populates the table using the existing table.</p>
+
+<p>You should end up with something that looks like this:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/partitioned_tracker.png" alt="Partitioned Tracker Table" style="width:500px;" /></p>
+
+<h2 id="add-columns-to-the-schema">Add Columns to the Schema</h2>
+
+<p>We need to add a bunch of additional columns to our table. We’re told what they are. The catch is that some of these columns (all of the columns with the <code class="language-plaintext highlighter-rouge">mobility</code> prefix) are part of a <strong>RECORD</strong>, which is represented using the <code class="language-plaintext highlighter-rouge">STRUCT</code> keyword.  Think of them like <em>sub-columns</em>.</p>
+
+<p>Here’s my solution:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">covid_733</span><span class="p">.</span><span class="n">oxford_policy_tracker_360</span>
+  <span class="k">ADD</span> <span class="k">COLUMN</span> <span class="n">population</span>    <span class="nb">INTEGER</span><span class="p">,</span>
+  <span class="k">ADD</span> <span class="k">COLUMN</span> <span class="n">country_area</span>  <span class="n">FLOAT64</span><span class="p">,</span>
+  <span class="k">ADD</span> <span class="k">COLUMN</span> <span class="n">mobility</span>      <span class="n">STRUCT</span><span class="o">&lt;</span>
+    <span class="n">avg_retail</span>      <span class="n">FLOAT64</span><span class="p">,</span>
+    <span class="n">avg_grocery</span>     <span class="n">FLOAT64</span><span class="p">,</span>
+    <span class="n">avg_parks</span>       <span class="n">FLOAT64</span><span class="p">,</span>
+    <span class="n">avg_transit</span>     <span class="n">FLOAT64</span><span class="p">,</span>
+    <span class="n">avg_workplace</span>   <span class="n">FLOAT64</span><span class="p">,</span>
+    <span class="n">avg_residential</span> <span class="n">FLOAT64</span><span class="o">&gt;</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>If you now refresh your table’s schema and scroll to the end, you can see your new columns have been added:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/tracker_cols_added.png" alt="Columns Added" style="width:480px;" /></p>
+
+<h2 id="add-country-population-data">Add Country Population Data</h2>
+
+<p>Now we need to add country data from a different table.  This is easy enough.  We just do an <code class="language-plaintext highlighter-rouge">UPDATE-SET-FROM</code>. Note that our table stores the 3-character country codes in the field called <code class="language-plaintext highlighter-rouge">alpha_3_code</code>, as is hinted by the supplied SQL in the lab.</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">#</span> <span class="n">use</span> <span class="mi">3</span><span class="o">-</span><span class="nb">char</span> <span class="n">country</span> <span class="n">codes</span>
+<span class="k">UPDATE</span>
+    <span class="n">covid_733</span><span class="p">.</span><span class="n">oxford_policy_tracker_360</span> <span class="n">t0</span>
+<span class="k">SET</span>
+    <span class="n">t0</span><span class="p">.</span><span class="n">population</span>  <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="n">pop_data_2019</span>
+<span class="k">FROM</span>
+  <span class="p">(</span><span class="k">SELECT</span> <span class="k">DISTINCT</span> <span class="n">country_territory_code</span><span class="p">,</span> <span class="n">pop_data_2019</span> 
+   <span class="k">FROM</span> <span class="nv">`bigquery-public-data.covid19_ecdc.covid_19_geographic_distribution_worldwide`</span>
+  <span class="p">)</span> <span class="k">AS</span> <span class="n">t2</span>
+<span class="k">WHERE</span> <span class="n">t0</span><span class="p">.</span><span class="n">alpha_3_code</span> <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="n">country_territory_code</span><span class="p">;</span>
+</code></pre></div></div>
+
+<h2 id="add-country-area-data">Add Country Area Data</h2>
+
+<p>This is basically the same as the previous step, except we use a different source table for the country area data.  Also note that this source table does have a country code field, but using only two character codes.  This is no good, so we’ll join on the full country name.</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">#</span> <span class="n">The</span> <span class="n">census_bureau_international</span> <span class="k">table</span> <span class="n">uses</span> <span class="mi">2</span><span class="o">-</span><span class="nb">char</span> <span class="n">country</span> <span class="n">codes</span><span class="p">,</span> <span class="n">so</span> <span class="n">we</span> <span class="n">can</span><span class="s1">'t use that
+UPDATE
+    covid_733.oxford_policy_tracker_360 t0
+SET
+    t0.country_area = t2.country_area
+FROM
+  (SELECT DISTINCT country_name, country_area
+   FROM `bigquery-public-data.census_bureau_international.country_names_area`
+  ) AS t2
+WHERE t0.country_name = t2.country_name;
+</span></code></pre></div></div>
+
+<h2 id="add-mobility-averages-data">Add Mobility Averages Data</h2>
+
+<p>This one was slightly tricker.  I had to look up the syntax for this.</p>
+
+<p>We’re already given this query:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">SELECT</span> <span class="n">country_region</span><span class="p">,</span> <span class="nb">date</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">retail_and_recreation_percent_change_from_baseline</span><span class="p">)</span> <span class="k">as</span> <span class="n">avg_retail</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">grocery_and_pharmacy_percent_change_from_baseline</span><span class="p">)</span>  <span class="k">as</span> <span class="n">avg_grocery</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">parks_percent_change_from_baseline</span><span class="p">)</span> <span class="k">as</span> <span class="n">avg_parks</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">transit_stations_percent_change_from_baseline</span><span class="p">)</span> <span class="k">as</span> <span class="n">avg_transit</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span> <span class="n">workplaces_percent_change_from_baseline</span> <span class="p">)</span> <span class="k">as</span> <span class="n">avg_workplace</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span> <span class="n">residential_percent_change_from_baseline</span><span class="p">)</span>  <span class="k">as</span> <span class="n">avg_residential</span>
+<span class="k">FROM</span> <span class="nv">`bigquery-public-data.covid19_google_mobility.mobility_report`</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">country_region</span><span class="p">,</span> <span class="nb">date</span>
+</code></pre></div></div>
+
+<p>This gives us averages for various values, each as a separate column.  Our rows are unique by a combination of country, and date.</p>
+
+<p>We need to insert these values, joining on both country and date.  But when we update our target rows, we need to update our single <em>STRUCT</em>, using the six different averages that compose our RECORD.</p>
+
+<p>I did it like this:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">#</span> <span class="n">We</span> <span class="n">need</span> <span class="k">to</span> <span class="n">average</span> <span class="n">a</span> <span class="n">number</span> <span class="k">of</span> <span class="n">records</span> <span class="n">per</span> <span class="n">country</span> <span class="k">and</span> <span class="k">data</span><span class="p">,</span>
+<span class="o">#</span> <span class="k">to</span> <span class="k">get</span> <span class="n">a</span> <span class="n">single</span> <span class="n">average</span> <span class="k">of</span> <span class="k">each</span> <span class="n">child</span> <span class="k">column</span> <span class="k">in</span> <span class="n">the</span> <span class="n">mobility</span> <span class="n">record</span>
+<span class="k">UPDATE</span>
+    <span class="n">covid_733</span><span class="p">.</span><span class="n">oxford_policy_tracker_360</span> <span class="n">t0</span>
+<span class="k">SET</span>
+    <span class="n">t0</span><span class="p">.</span><span class="n">mobility</span>  <span class="o">=</span> <span class="n">STRUCT</span><span class="p">(</span><span class="n">t2</span><span class="p">.</span><span class="n">avg_retail</span><span class="p">,</span> 
+                         <span class="n">t2</span><span class="p">.</span><span class="n">avg_grocery</span><span class="p">,</span>
+                         <span class="n">t2</span><span class="p">.</span><span class="n">avg_parks</span><span class="p">,</span>
+                         <span class="n">t2</span><span class="p">.</span><span class="n">avg_transit</span><span class="p">,</span>
+                         <span class="n">t2</span><span class="p">.</span><span class="n">avg_workplace</span><span class="p">,</span>
+                         <span class="n">t2</span><span class="p">.</span><span class="n">avg_residential</span><span class="p">)</span>
+<span class="k">FROM</span>
+  <span class="p">(</span><span class="k">SELECT</span> <span class="n">country_region</span><span class="p">,</span> <span class="nb">date</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">retail_and_recreation_percent_change_from_baseline</span><span class="p">)</span> <span class="k">as</span> <span class="n">avg_retail</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">grocery_and_pharmacy_percent_change_from_baseline</span><span class="p">)</span>  <span class="k">as</span> <span class="n">avg_grocery</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">parks_percent_change_from_baseline</span><span class="p">)</span> <span class="k">as</span> <span class="n">avg_parks</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span><span class="n">transit_stations_percent_change_from_baseline</span><span class="p">)</span> <span class="k">as</span> <span class="n">avg_transit</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span> <span class="n">workplaces_percent_change_from_baseline</span> <span class="p">)</span> <span class="k">as</span> <span class="n">avg_workplace</span><span class="p">,</span>
+      <span class="k">AVG</span><span class="p">(</span> <span class="n">residential_percent_change_from_baseline</span><span class="p">)</span>  <span class="k">as</span> <span class="n">avg_residential</span>
+   <span class="k">FROM</span> <span class="nv">`bigquery-public-data.covid19_google_mobility.mobility_report`</span>
+   <span class="k">GROUP</span> <span class="k">BY</span> <span class="n">country_region</span><span class="p">,</span> <span class="nb">date</span>
+  <span class="p">)</span> <span class="k">AS</span> <span class="n">t2</span>
+<span class="k">WHERE</span> <span class="n">t0</span><span class="p">.</span><span class="n">country_name</span> <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="n">country_region</span>
+  <span class="k">AND</span> <span class="n">t0</span><span class="p">.</span><span class="nb">date</span> <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="nb">date</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>If you now refresh the preview of your table data and scroll to the far right, you’ll see it looks something like this:</p>
+
+<p><img src="/gcp-challenge-labs/assets/images/mobility_data.png" alt="Mobility Data" style="width:640px;" /></p>
+
+<h2 id="query-missing-data">Query Missing Data</h2>
+
+<p>Finally, we’re asked to look for missing data in our table.  Specifically:</p>
+
+<ul>
+  <li>Countries that are missing population data</li>
+  <li>Countries that are missing country area data</li>
+</ul>
+
+<p>Where we’re missing both, we should show the country twice.</p>
+
+<p>So my strategy is:</p>
+
+<ul>
+  <li>Look up all the distinct countries in the <code class="language-plaintext highlighter-rouge">country_names_area</code> table.</li>
+  <li>Use this table as a left join, and join to our table.</li>
+  <li>Join on where our table has a null value for <code class="language-plaintext highlighter-rouge">population</code>.</li>
+  <li>Now, repeat these steps, but join on hwere our table has a null value for <code class="language-plaintext highlighter-rouge">country_area</code>.</li>
+</ul>
+
+<p>At this point, we have results from two queries, and both are simply a list of country names.  Now we want to add them together, so we’ll use <code class="language-plaintext highlighter-rouge">UNION ALL</code>.  We want to use the <code class="language-plaintext highlighter-rouge">ALL</code> option, since we don’t want to exclude duplicates.</p>
+
+<p>The final query looks like this:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">#</span> <span class="n">countries</span> <span class="n">missing</span> <span class="n">population</span> <span class="n">information</span> <span class="k">in</span> <span class="n">the</span> <span class="n">tracker</span>
+<span class="k">SELECT</span> <span class="k">DISTINCT</span> 
+  <span class="n">countries</span><span class="p">.</span><span class="n">country_name</span>
+<span class="k">FROM</span> <span class="nv">`bigquery-public-data.census_bureau_international.country_names_area`</span> <span class="k">AS</span> <span class="n">countries</span>
+<span class="k">LEFT</span> <span class="k">JOIN</span> <span class="nv">`covid_733.oxford_policy_tracker_360`</span> <span class="k">AS</span> <span class="n">tracker</span>
+<span class="k">ON</span> <span class="n">countries</span><span class="p">.</span><span class="n">country_name</span> <span class="o">=</span> <span class="n">tracker</span><span class="p">.</span><span class="n">country_name</span>
+<span class="k">WHERE</span> <span class="n">tracker</span><span class="p">.</span><span class="n">population</span> <span class="k">IS</span> <span class="k">NULL</span>
+<span class="k">UNION</span> <span class="k">ALL</span>
+<span class="o">#</span> <span class="n">countries</span> <span class="n">missing</span> <span class="n">country</span> <span class="n">area</span> <span class="n">information</span> <span class="k">in</span> <span class="n">the</span> <span class="n">tracker</span>
+<span class="k">SELECT</span> <span class="k">DISTINCT</span> 
+  <span class="n">countries</span><span class="p">.</span><span class="n">country_name</span>
+<span class="k">FROM</span> <span class="nv">`bigquery-public-data.census_bureau_international.country_names_area`</span> <span class="k">AS</span> <span class="n">countries</span>
+<span class="k">LEFT</span> <span class="k">JOIN</span> <span class="nv">`covid_733.oxford_policy_tracker_360`</span> <span class="k">AS</span> <span class="n">tracker</span>
+<span class="k">ON</span> <span class="n">countries</span><span class="p">.</span><span class="n">country_name</span> <span class="o">=</span> <span class="n">tracker</span><span class="p">.</span><span class="n">country_name</span>
+<span class="k">WHERE</span> <span class="n">tracker</span><span class="p">.</span><span class="n">country_area</span> <span class="k">IS</span> <span class="k">NULL</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">country_name</span>
+</code></pre></div></div>
+
+<p>That’s it. Not so bad!</p>
+
+
+      </section>
+    </div>
+    <footer>
+    
+      <p>Hosted on GitHub Pages</p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+  </body>
+</html>
